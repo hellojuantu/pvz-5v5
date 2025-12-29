@@ -952,6 +952,19 @@
         cursor: pointer;
       }
 
+      .lawnmower {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        font-size: 36px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 15; /* Higher than plants to be visible */
+        transition: left 3s linear;
+        filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
+      }
+
       .reconnecting-overlay {
         position: fixed;
         inset: 0;
@@ -1422,6 +1435,21 @@
           }
         }
 
+        // Render lawnmowers
+        const lawnmowers =
+          data.gameState && data.gameState.lawnmowers ? data.gameState.lawnmowers : data.lawnmowers || [true, true, true, true, true];
+        for (let r = 0; r < 5; r++) {
+          if (lawnmowers[r]) {
+            const lm = document.createElement('div');
+            lm.className = 'lawnmower';
+            lm.id = `lawnmower-${r}`;
+            lm.textContent = '🚜';
+            lm.style.left = '-25px'; // Adjust position for smaller emoji
+            lm.style.top = r * 109 + 30 + 'px';
+            gameBoard.appendChild(lm);
+          }
+        }
+
         // Exit game button
         $('exit-game-btn').onclick = () => {
           if (confirm('确定投降？对方将获胜')) {
@@ -1655,6 +1683,15 @@
         socket.off('skySun').on('skySun', (d) => createSun(d.x, d.y));
         socket.off('skyBrain').on('skyBrain', (d) => createBrain(d.x, d.y));
         socket.off('zombieBrain').on('zombieBrain', (d) => createBrain(d.x, d.row * 109 + 45));
+
+        socket.off('lawnmowerTrigger').on('lawnmowerTrigger', (d) => {
+          const lm = $(`lawnmower-${d.row}`);
+          if (lm) {
+            lm.style.left = '1300px'; // Move fully across screen
+            log('🚜 割草机启动!');
+            setTimeout(() => lm.remove(), 2000); // Remove after animation
+          }
+        });
         socket.off('sunUpdate').on('sunUpdate', (d) => {
           $('sun-count').textContent = d.sunCount;
           updateCardStates();

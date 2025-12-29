@@ -56,7 +56,8 @@ function saveData() {
         })),
         plantPlayers: room.plantPlayers.map((p) => ({ id: p.id, oderId: p.oderId, name: p.name, isBot: p.isBot })),
         zombiePlayers: room.zombiePlayers.map((p) => ({ id: p.id, oderId: p.oderId, name: p.name, isBot: p.isBot })),
-        chatHistory: room.chatHistory.slice(-20)
+        chatHistory: room.chatHistory.slice(-20),
+        lawnmowers: room.lawnmowers
       };
     }
   });
@@ -138,6 +139,7 @@ class GameRoom {
     this.plants = [];
     this.zombies = [];
     this.projectiles = [];
+    this.lawnmowers = [true, true, true, true, true]; // One per row, true = available
 
     this.sunCount = 500;
     this.brainCount = 500;
@@ -163,6 +165,7 @@ class GameRoom {
     this.grid = saved.grid.map((col) => col.map((cell) => (cell ? { type: cell.type } : null)));
     this.plants = saved.plants.map((p) => ({ ...p }));
     this.zombies = saved.zombies.map((z) => ({ ...z }));
+    this.lawnmowers = saved.lawnmowers || [true, true, true, true, true];
     this.plants.forEach((p) => {
       this.grid[p.col][p.row] = p;
     });
@@ -239,6 +242,7 @@ class GameRoom {
       brainCount: this.brainCount,
       waveNumber: this.waveNumber,
       maxWaves: this.maxWaves,
+      lawnmowers: this.lawnmowers,
       plants: this.plants.map((p) => ({ type: p.type, col: p.col, row: p.row, hp: p.hp, maxHp: p.maxHp, armed: p.armed })),
       zombies: this.zombies.map((z) => ({ id: z.id, type: z.type, row: z.row, x: z.x, hp: z.hp, maxHp: z.maxHp, slowed: z.slowed }))
     };
@@ -502,7 +506,22 @@ class GameRoom {
         }
       } else if (!targetPlant || zombie.canJump) {
         zombie.x -= zombie.speed;
-        if (zombie.x < -30) this.endGame('zombies');
+        // Check if zombie reaches left edge
+        if (zombie.x < 20) {
+          if (this.lawnmowers[zombie.row]) {
+            // Trigger lawnmower - kill all zombies in this row
+            this.lawnmowers[zombie.row] = false;
+            this.broadcast('lawnmowerTrigger', { row: zombie.row });
+            const zombiesInRow = this.zombies.filter((z) => z.row === zombie.row);
+            zombiesInRow.forEach((z) => {
+              z.hp = 0;
+              this.broadcast('zombieDie', { id: z.id });
+            });
+          } else if (zombie.x < -30) {
+            // No lawnmower left - zombies win
+            this.endGame('zombies');
+          }
+        }
       }
     });
 
