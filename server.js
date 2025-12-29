@@ -693,7 +693,11 @@ class GameRoom {
     });
     delete persistedData.roomStates[this.id];
     saveData();
-    this.broadcast('gameEnd', { winner, waveNumber: this.waveNumber });
+    this.broadcast('gameEnd', {
+      winner,
+      waveNumber: this.waveNumber,
+      winnerNames: winner === 'plants' ? plantNames : zombieNames
+    });
   }
 
   // Smarter AI
