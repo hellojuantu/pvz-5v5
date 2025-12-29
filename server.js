@@ -1120,9 +1120,8 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║  🌻 PvZ Multiplayer - Complete Edition 🧟                    ║
-║  http://localhost:${PORT}/multiplayer.html                       ║
-║  🎯 最大波数 | ⏸️ 暂停系统 | 🧠 智能AI | 🔄 断线续玩          ║
+║  🌻 PvZ 🧟 Multiplayer - Online Edition                      ║
+║  http://localhost:${PORT}                                       ║
 ╚══════════════════════════════════════════════════════════════╝
     `);
 });
