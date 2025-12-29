@@ -609,19 +609,29 @@
 
       .projectile {
         position: absolute;
-        width: 8px;
-        height: 8px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        z-index: 15;
+        z-index: 100;
         pointer-events: none;
       }
       .pea-normal {
-        background: radial-gradient(circle, #8bc34a, #4caf50);
-        box-shadow: 0 0 3px #4caf50;
+        background: radial-gradient(circle, #9ccc65, #4caf50);
+        box-shadow:
+          0 0 6px #4caf50,
+          0 0 10px rgba(76, 175, 80, 0.5);
       }
       .pea-ice {
         background: radial-gradient(circle, #b3e5fc, #00bcd4);
-        box-shadow: 0 0 4px #00bcd4;
+        box-shadow:
+          0 0 6px #00bcd4,
+          0 0 10px rgba(0, 188, 212, 0.5);
+      }
+      .pea-fire {
+        background: radial-gradient(circle, #ffcc80, #ff5722);
+        box-shadow:
+          0 0 8px #ff5722,
+          0 0 12px rgba(255, 87, 34, 0.6);
       }
 
       .sun-token,

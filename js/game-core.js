@@ -15,6 +15,8 @@ const gameState = {
 // 当前选中的实体和铲子模式
 let selectedEntity = null;
 let isShovelMode = false;
+// 触摸容错：记录最后一次有效的高亮位置
+let lastValidCell = null;
 
 // 获取订单ID（用于恢复连接）
 function getOderId() {
@@ -228,6 +230,7 @@ function initGame(socket, data, myTeam, myName) {
       cellHighlight.style.display = 'block';
       cellHighlight.style.left = col * 110 + 'px';
       cellHighlight.style.top = row * 109 + 'px';
+      lastValidCell = { col, row };
     } else {
       cellHighlight.style.display = 'none';
     }
@@ -238,7 +241,16 @@ function initGame(socket, data, myTeam, myName) {
     if (e.target.classList.contains('sun-token') || e.target.classList.contains('brain-token')) return;
     if (!selectedEntity) return;
 
-    const { col, row, isValid } = getGridPosition(e);
+    let { col, row, isValid } = getGridPosition(e);
+
+    // 触摸容错：如果当前位置无效但最近有有效位置，且是触摸结束事件，使用最近位置
+    if (!isValid && e.type === 'touchend' && lastValidCell) {
+      col = lastValidCell.col;
+      row = lastValidCell.row;
+      isValid = true;
+      lastValidCell = null;
+    }
+
     if (!isValid) return;
 
     if (isShovelMode) {
@@ -253,6 +265,8 @@ function initGame(socket, data, myTeam, myName) {
       selectedEntity = null;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';
+      // 放置成功后重置 lastValidCell
+      lastValidCell = null;
     }
   }
 
@@ -382,13 +396,24 @@ function setupGameEvents(socket, myTeam) {
     log(`💀 僵尸死亡`);
   });
 
-  socket.off('projectileFired').on('projectileFired', (d) => {
+  socket.off('shoot').on('shoot', (d) => {
     GameUI.renderProjectile(gameState, d);
   });
 
-  socket.off('projectileHit').on('projectileHit', (d) => {
-    GameUI.removeProjectile(gameState, d.id);
+  socket.off('peaHit').on('peaHit', (d) => {
+    GameUI.removeProjectile(gameState, d.peaId);
     if (d.zombieId) GameUI.highlightZombie(gameState, d.zombieId);
+  });
+
+  socket.off('peaMiss').on('peaMiss', (d) => {
+    GameUI.removeProjectile(gameState, d.peaId);
+  });
+
+  socket.off('peaFire').on('peaFire', (d) => {
+    const pea = gameState.projectiles.get(d.peaId);
+    if (pea) {
+      pea.className = 'projectile pea-fire';
+    }
   });
 
   socket.off('chomperDigesting').on('chomperDigesting', (d) => {
