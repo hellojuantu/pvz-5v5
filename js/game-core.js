@@ -401,16 +401,29 @@ function initGame(socket, data, myTeam, myName) {
       cellHighlight.classList.remove('remove');
       removeDragGhost();
     } else if (myTeam === 'plants') {
-      socket.emit('placePlant', { type: selectedEntity, col, row });
+      const type = selectedEntity;
+      socket.emit('placePlant', { type, col, row });
+
+      // Optimistic Rendering (Instant Feedback)
+      const { GameUI } = window;
+      GameUI.renderPlant(gameState, { type, col, row, hp: 300, maxHp: 300 }); // HP dummy value, updated by server later
+      const card = document.querySelector(`.entity-card[data-type="${type}"]`);
+      if (card) GameUI.startCardCooldown(card, 2500); // Standard cooldown
+
       selectedEntity = null;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';
       removeDragGhost();
-      // 放置成功后重置 lastValidCell
       lastValidCell = null;
     } else if (myTeam === 'zombies') {
-      // 僵尸拖拽放置：只要拖到对应行即可
-      socket.emit('spawnZombie', { type: selectedEntity, row });
+      const type = selectedEntity;
+      socket.emit('spawnZombie', { type, row });
+
+      // Instant Feedback (Cooldown)
+      const { GameUI } = window;
+      const card = document.querySelector(`.entity-card[data-type="${type}"]`);
+      if (card) GameUI.startCardCooldown(card, 3000); // Standard cooldown
+
       selectedEntity = null;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';

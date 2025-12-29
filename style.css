@@ -200,15 +200,15 @@ body {
   flex-direction: column;
 }
 .lobby-item-create .section-title {
-  font-size: 22px;
+  font-size: 18px;
 }
 .lobby-item-create .mode-grid {
-  justify-content: center; /* Center buttons */
+  /* Left align */
 }
 .lobby-item-create .create-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* Left align */
 }
 .lobby-item-wait {
   /* No grid area needed */
@@ -387,7 +387,24 @@ body {
 #refresh-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   opacity: 1;
+}
+#refresh-btn:hover svg {
   transform: rotate(180deg);
+}
+
+.drag-ghost {
+  position: fixed;
+  width: 60px;
+  height: 60px;
+  font-size: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.8;
+  transform: translate(-50%, -50%);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 .room-card {
   background: rgba(255, 255, 255, 0.05);
