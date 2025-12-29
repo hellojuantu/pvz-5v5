@@ -1,146 +1,150 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh">
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>植物大战僵尸 - 终极版</title>
     <link rel="stylesheet" href="style.css" />
-</head>
-<body>
+  </head>
+  <body>
     <div id="game-container">
-        <!-- Start Screen -->
-        <div id="start-screen">
-            <div class="start-content">
-                <div class="game-title">🌻 植物大战僵尸 🧟</div>
-                <div class="start-buttons">
-                    <button id="continue-btn" class="menu-btn continue-btn" style="display:none;">
-                        <span class="btn-icon">▶️</span>
-                        <span class="btn-text">继续游戏</span>
-                    </button>
-                    <button id="start-btn" class="menu-btn start-btn">
-                        <span class="btn-icon">🎮</span>
-                        <span class="btn-text">开始游戏</span>
-                    </button>
-                    <button id="leaderboard-btn" class="menu-btn leaderboard-btn">
-                        <span class="btn-icon">🏆</span>
-                        <span class="btn-text">排行榜</span>
-                    </button>
-                </div>
-                <div class="start-tips">按 ESC 暂停游戏</div>
-            </div>
+      <!-- Start Screen -->
+      <div id="start-screen">
+        <div class="start-content">
+          <div class="game-title">🌻 植物大战僵尸 🧟</div>
+          <div class="start-buttons">
+            <button id="continue-btn" class="menu-btn continue-btn" style="display: none">
+              <span class="btn-icon">▶️</span>
+              <span class="btn-text">继续游戏</span>
+            </button>
+            <button id="start-btn" class="menu-btn start-btn">
+              <span class="btn-icon">🎮</span>
+              <span class="btn-text">开始游戏</span>
+            </button>
+            <button id="leaderboard-btn" class="menu-btn leaderboard-btn">
+              <span class="btn-icon">🏆</span>
+              <span class="btn-text">排行榜</span>
+            </button>
+          </div>
+          <div class="start-tips">按 ESC 暂停游戏</div>
+        </div>
+      </div>
+
+      <!-- Pause Menu -->
+      <div id="pause-menu" class="modal-overlay">
+        <div class="modal-content pause-content">
+          <div class="modal-title">⏸️ 游戏暂停</div>
+          <div class="pause-buttons">
+            <button id="resume-btn" class="menu-btn">
+              <span class="btn-icon">▶️</span>
+              <span class="btn-text">继续</span>
+            </button>
+            <button id="pause-restart-btn" class="menu-btn danger-btn">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">重新开始</span>
+            </button>
+            <button id="pause-quit-btn" class="menu-btn">
+              <span class="btn-icon">🏠</span>
+              <span class="btn-text">返回主页</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard Modal -->
+      <div id="leaderboard-modal" class="modal-overlay">
+        <div class="modal-content leaderboard-content">
+          <div class="modal-title">🏆 排行榜</div>
+          <div id="leaderboard-list" class="leaderboard-list">
+            <!-- Populated by JS -->
+          </div>
+          <button id="close-leaderboard-btn" class="menu-btn">关闭</button>
+        </div>
+      </div>
+
+      <!-- Background -->
+      <div id="game-background"></div>
+
+      <!-- Top Bar -->
+      <div id="top-bar">
+        <div id="sun-container">
+          <span class="sun-icon">☀️</span>
+          <span id="sun-count">200</span>
         </div>
 
-        <!-- Pause Menu -->
-        <div id="pause-menu" class="modal-overlay">
-            <div class="modal-content pause-content">
-                <div class="modal-title">⏸️ 游戏暂停</div>
-                <div class="pause-buttons">
-                    <button id="resume-btn" class="menu-btn">
-                        <span class="btn-icon">▶️</span>
-                        <span class="btn-text">继续</span>
-                    </button>
-                    <button id="pause-restart-btn" class="menu-btn danger-btn">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">重新开始</span>
-                    </button>
-                    <button id="pause-quit-btn" class="menu-btn">
-                        <span class="btn-icon">🏠</span>
-                        <span class="btn-text">返回主页</span>
-                    </button>
-                </div>
-            </div>
+        <div id="wave-info">
+          <span id="wave-label">波次</span>
+          <span id="wave-number">1</span>
+          <div id="wave-progress">
+            <div id="wave-progress-bar"></div>
+          </div>
         </div>
 
-        <!-- Leaderboard Modal -->
-        <div id="leaderboard-modal" class="modal-overlay">
-            <div class="modal-content leaderboard-content">
-                <div class="modal-title">🏆 排行榜</div>
-                <div id="leaderboard-list" class="leaderboard-list">
-                    <!-- Populated by JS -->
-                </div>
-                <button id="close-leaderboard-btn" class="menu-btn">关闭</button>
-            </div>
+        <div id="plant-menu">
+          <div class="plant-card" data-plant="sunflower" data-cost="50">
+            <div class="plant-icon">🌻</div>
+            <div class="plant-cost">50</div>
+          </div>
+          <div class="plant-card" data-plant="peashooter" data-cost="100">
+            <div class="plant-icon">🌱</div>
+            <div class="plant-cost">100</div>
+          </div>
+          <div class="plant-card" data-plant="snowpea" data-cost="175">
+            <div class="plant-icon">❄️</div>
+            <div class="plant-cost">175</div>
+          </div>
+          <div class="plant-card" data-plant="wallnut" data-cost="50">
+            <div class="plant-icon">🌰</div>
+            <div class="plant-cost">50</div>
+          </div>
+          <div class="plant-card" data-plant="chomper" data-cost="150">
+            <div class="plant-icon">🐊</div>
+            <div class="plant-cost">150</div>
+          </div>
+          <div class="plant-card" data-plant="potatomine" data-cost="25">
+            <div class="plant-icon">🥔</div>
+            <div class="plant-cost">25</div>
+          </div>
+          <div class="plant-card" data-plant="cherrybomb" data-cost="150">
+            <div class="plant-icon">🍒</div>
+            <div class="plant-cost">150</div>
+          </div>
+          <div class="plant-card shovel-card" data-plant="shovel" data-cost="0">
+            <div class="plant-icon">🔧</div>
+            <div class="plant-cost">铲子</div>
+          </div>
         </div>
 
-        <!-- Background -->
-        <div id="game-background"></div>
-        
-        <!-- Top Bar -->
-        <div id="top-bar">
-            <div id="sun-container">
-                <span class="sun-icon">☀️</span>
-                <span id="sun-count">200</span>
-            </div>
-            
-            <div id="wave-info">
-                <span id="wave-label">波次</span>
-                <span id="wave-number">1</span>
-                <div id="wave-progress">
-                    <div id="wave-progress-bar"></div>
-                </div>
-            </div>
-            
-            <div id="plant-menu">
-                <div class="plant-card" data-plant="sunflower" data-cost="50">
-                    <div class="plant-icon">🌻</div>
-                    <div class="plant-cost">50</div>
-                </div>
-                <div class="plant-card" data-plant="peashooter" data-cost="100">
-                    <div class="plant-icon">🌱</div>
-                    <div class="plant-cost">100</div>
-                </div>
-                <div class="plant-card" data-plant="snowpea" data-cost="175">
-                    <div class="plant-icon">❄️</div>
-                    <div class="plant-cost">175</div>
-                </div>
-                <div class="plant-card" data-plant="wallnut" data-cost="50">
-                    <div class="plant-icon">🌰</div>
-                    <div class="plant-cost">50</div>
-                </div>
-                <div class="plant-card" data-plant="chomper" data-cost="150">
-                    <div class="plant-icon">🐊</div>
-                    <div class="plant-cost">150</div>
-                </div>
-                <div class="plant-card" data-plant="potatomine" data-cost="25">
-                    <div class="plant-icon">🥔</div>
-                    <div class="plant-cost">25</div>
-                </div>
-                <div class="plant-card" data-plant="cherrybomb" data-cost="150">
-                    <div class="plant-icon">🍒</div>
-                    <div class="plant-cost">150</div>
-                </div>
-                <div class="plant-card shovel-card" data-plant="shovel" data-cost="0">
-                    <div class="plant-icon">🔧</div>
-                    <div class="plant-cost">铲子</div>
-                </div>
-            </div>
-            
-            <div id="control-panel">
-                <button id="pause-btn" class="ctrl-btn">⏸️</button>
-            </div>
+        <div id="control-panel">
+          <button id="pause-btn" class="ctrl-btn">⏸️</button>
         </div>
-        
-        <div id="game-board"></div>
+      </div>
+
+      <div id="game-board"></div>
     </div>
 
     <!-- Game Over Modal -->
     <div id="game-over-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-title game-over-title">💀 游戏结束</div>
-            <p class="modal-score">你坚持了 <span id="wave-display" class="highlight">1</span> 波</p>
-            <div class="game-over-buttons">
-                <button id="restart-game-btn" class="menu-btn">
-                    <span class="btn-icon">🔄</span>
-                    <span class="btn-text">再来一局</span>
-                </button>
-                <button id="home-btn" class="menu-btn">
-                    <span class="btn-icon">🏠</span>
-                    <span class="btn-text">返回主页</span>
-                </button>
-            </div>
+      <div class="modal-content">
+        <div class="modal-title game-over-title">💀 游戏结束</div>
+        <p class="modal-score">
+          你坚持了
+          <span id="wave-display" class="highlight">1</span>
+          波
+        </p>
+        <div class="game-over-buttons">
+          <button id="restart-game-btn" class="menu-btn">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">再来一局</span>
+          </button>
+          <button id="home-btn" class="menu-btn">
+            <span class="btn-icon">🏠</span>
+            <span class="btn-text">返回主页</span>
+          </button>
         </div>
+      </div>
     </div>
-    
+
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
