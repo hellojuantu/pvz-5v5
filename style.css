@@ -252,11 +252,10 @@ body {
   box-shadow: 0 0 10px rgba(255, 215, 0, 0.1);
 }
 .create-btn {
-  width: 100%;
-  max-width: 400px; /* Limit width for aesthetics when centered */
-  margin-left: auto;
-  margin-right: auto;
-  padding: 16px;
+  width: auto;
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 12px 40px;
   font-size: 18px;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary), #2e7d32);
