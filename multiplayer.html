@@ -1157,9 +1157,11 @@
       </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="config.js"></script>
     <script>
-      const socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionAttempts: 10 });
+      // 如果没有 BACKEND_URL (本地开发), socket.io 默认会连接到当前 host
+      const socket = io(window.BACKEND_URL || undefined, { reconnection: true, reconnectionDelay: 1000, reconnectionAttempts: 10 });
 
       function getOderId() {
         let id = localStorage.getItem('pvz_oder_id');
