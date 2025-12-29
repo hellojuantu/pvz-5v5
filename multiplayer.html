@@ -1106,7 +1106,7 @@
           <div class="pause-title">⏸️ 游戏暂停</div>
           <div class="pause-text">等待玩家重连...</div>
         </div>
-        <button class="exit-btn" id="exit-game-btn">🚪 退出</button>
+        <button class="exit-btn" id="exit-game-btn">🏳️ 投降</button>
       </div>
       <div id="side-panel">
         <div class="side-box">
@@ -1413,7 +1413,7 @@
 
         // Exit game button
         $('exit-game-btn').onclick = () => {
-          if (confirm('确定退出游戏？')) {
+          if (confirm('确定投降？对方将获胜')) {
             socket.emit('leaveGame', true);
             showLobby();
           }

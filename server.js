@@ -16,7 +16,12 @@ const DATA_FILE = path.join(__dirname, 'game_data.json');
 
 let persistedData = { sessions: {}, leaderboard: [], roomStates: {} };
 try {
-  if (fs.existsSync(DATA_FILE)) persistedData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  if (fs.existsSync(DATA_FILE)) {
+    const loaded = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    persistedData.sessions = loaded.sessions || {};
+    persistedData.leaderboard = loaded.leaderboard || [];
+    persistedData.roomStates = loaded.roomStates || {};
+  }
 } catch (e) {}
 Object.entries(persistedData.sessions || {}).forEach(([k, v]) => sessions.set(k, v));
 
@@ -57,6 +62,7 @@ function saveData() {
   });
   persistedData.sessions = sessObj;
   persistedData.roomStates = roomStates;
+  // Keep leaderboard intact (it's already in persistedData)
   fs.writeFileSync(DATA_FILE, JSON.stringify(persistedData, null, 2));
 }
 
@@ -1008,19 +1014,33 @@ io.on('connection', (socket) => {
 
   socket.on('leaveGame', (forceLeave) => {
     if (currentRoom) {
-      // Remove player from room's persisted player list
       const room = currentRoom;
+      const surrenderingTeam = currentTeam;
+
+      // Remove player from room's persisted player list
       room.plantPlayers = room.plantPlayers.filter((p) => p.oderId !== oderId);
       room.zombiePlayers = room.zombiePlayers.filter((p) => p.oderId !== oderId);
       room.broadcast('playerUpdate', { playerList: room.getPlayerList(), info: room.getInfo() });
 
-      // If no real players left, end the game
-      const realPlayers = [...room.plantPlayers, ...room.zombiePlayers].filter((p) => !p.isBot);
-      if (realPlayers.length === 0 && (room.state === 'playing' || room.state === 'paused')) {
-        room.stopLoops();
-        room.state = 'ended';
-        rooms.delete(room.id);
-        delete persistedData.roomStates[room.id];
+      // Check if surrendering team has no real players left - opponent wins
+      if (room.state === 'playing' || room.state === 'paused') {
+        const remainingPlants = room.plantPlayers.filter((p) => !p.isBot);
+        const remainingZombies = room.zombiePlayers.filter((p) => !p.isBot);
+
+        if (surrenderingTeam === 'plants' && remainingPlants.length === 0) {
+          room.endGame('zombies');
+        } else if (surrenderingTeam === 'zombies' && remainingZombies.length === 0) {
+          room.endGame('plants');
+        } else {
+          // Still have real players, just pause
+          const realPlayers = [...room.plantPlayers, ...room.zombiePlayers].filter((p) => !p.isBot);
+          if (realPlayers.length === 0) {
+            room.stopLoops();
+            room.state = 'ended';
+            rooms.delete(room.id);
+            delete persistedData.roomStates[room.id];
+          }
+        }
       }
       currentRoom = null;
       currentTeam = null;
@@ -1033,8 +1053,23 @@ io.on('connection', (socket) => {
 
   socket.on('leaveRoom', () => {
     if (currentRoom) {
+      const leavingTeam = currentTeam;
       currentRoom.removePlayer(socket.id, true);
       currentRoom.broadcast('playerUpdate', { playerList: currentRoom.getPlayerList(), info: currentRoom.getInfo() });
+
+      // Check if game is playing and leaving team has no real players left
+      if (currentRoom.state === 'playing') {
+        const remainingPlants = currentRoom.plantPlayers.filter((p) => !p.isBot && p.socket?.connected);
+        const remainingZombies = currentRoom.zombiePlayers.filter((p) => !p.isBot && p.socket?.connected);
+
+        // If leaving team has no real players, opponent wins
+        if (leavingTeam === 'plants' && remainingPlants.length === 0) {
+          currentRoom.endGame('zombies');
+        } else if (leavingTeam === 'zombies' && remainingZombies.length === 0) {
+          currentRoom.endGame('plants');
+        }
+      }
+
       if (currentRoom.plantPlayers.length === 0 && currentRoom.zombiePlayers.length === 0) {
         currentRoom.stopLoops();
         rooms.delete(currentRoom.id);
