@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>植物大战僵尸 - 联机对战</title>
+    <style>
+        :root { --primary: #4caf50; --accent: #ffd700; --danger: #ff5252; --zombie-purple: #9C27B0; --brain-pink: #E91E63; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(135deg, #0a1f0a, #1a3c1a); min-height: 100vh; color: white; user-select: none; display: flex; justify-content: center; align-items: flex-start; padding-top: 8px; }
+        
+        .welcome-screen { position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.97), rgba(20,40,20,0.97)); z-index: 6000; display: flex; justify-content: center; align-items: center; }
+        .welcome-content { text-align: center; }
+        .welcome-title { font-size: 40px; font-weight: 900; margin-bottom: 5px; background: linear-gradient(180deg, #4CAF50, #8BC34A); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .welcome-subtitle { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 18px; }
+        .name-input-large { padding: 11px 16px; font-size: 16px; border: 2px solid var(--accent); border-radius: 9px; background: rgba(0,0,0,0.6); color: white; text-align: center; width: 200px; margin-bottom: 12px; }
+        .enter-btn { padding: 11px 35px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, var(--primary), #388e3c); border: none; border-radius: 25px; color: white; cursor: pointer; }
+        
+        .lobby { position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,40,20,0.95)); z-index: 5000; display: none; padding: 12px; overflow-y: auto; }
+        .lobby-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .lobby-title { font-size: 16px; font-weight: 700; }
+        .user-badge { background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 20px; font-size: 11px; }
+        
+        .lobby-grid { display: grid; grid-template-columns: 1fr 240px; gap: 10px; max-width: 800px; margin: 0 auto; }
+        .section { background: rgba(255,255,255,0.05); border-radius: 9px; padding: 10px; border: 1px solid rgba(255,255,255,0.1); }
+        .section-title { font-size: 13px; margin-bottom: 6px; color: var(--accent); }
+        
+        .mode-grid { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+        .mode-btn { padding: 7px 11px; font-size: 11px; font-weight: 700; border: 2px solid rgba(255,255,255,0.2); border-radius: 5px; background: rgba(255,255,255,0.05); color: white; cursor: pointer; }
+        .mode-btn.selected { border-color: var(--accent); background: rgba(255,215,0,0.2); }
+        .create-btn { width: 100%; padding: 8px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, var(--primary), #388e3c); border: none; border-radius: 5px; color: white; cursor: pointer; }
+        
+        .room-section { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 6px; border: 1px solid rgba(255,255,255,0.1); }
+        .room-section .section-title { font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+        .room-list { max-height: 200px; overflow-y: auto; }
+        .room-card { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 8px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent; }
+        .room-card:hover { border-color: var(--accent); }
+        .room-header { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .room-name { font-weight: 700; font-size: 11px; }
+        .room-mode { background: var(--accent); color: #000; padding: 1px 5px; border-radius: 6px; font-size: 8px; font-weight: 700; }
+        .room-players { font-size: 9px; color: rgba(255,255,255,0.6); }
+        .no-rooms { text-align: center; padding: 18px; color: rgba(255,255,255,0.4); font-size: 11px; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5500; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: linear-gradient(135deg, #1a2a1a, #0a150a); padding: 18px; border-radius: 12px; border: 2px solid var(--accent); text-align: center; min-width: 320px; }
+        .modal-title { font-size: 16px; margin-bottom: 10px; color: var(--accent); }
+        .team-grid { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
+        .team-card { padding: 14px 22px; border-radius: 8px; cursor: pointer; border: 2px solid; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .team-card.plants { background: rgba(76,175,80,0.2); border-color: #4CAF50; }
+        .team-card.zombies { background: rgba(156,39,176,0.2); border-color: #9C27B0; }
+        .team-card .icon { font-size: 28px; }
+        .team-card .label { font-size: 12px; font-weight: 700; }
+        .team-card .count { font-size: 9px; opacity: 0.7; }
+        .modal-close { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px; }
+        
+        .waiting-room { display: none; }
+        .waiting-title { font-size: 18px; margin-bottom: 6px; text-align: center; }
+        .waiting-slots { display: flex; gap: 14px; justify-content: center; margin-bottom: 10px; }
+        .slot-column { background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; min-width: 120px; }
+        .slot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px; }
+        .slot-header.plants { color: #8BC34A; }
+        .slot-header.zombies { color: #CE93D8; }
+        .add-bot { cursor: pointer; font-size: 12px; opacity: 0.6; }
+        .player-slot { padding: 4px 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-bottom: 2px; font-size: 9px; }
+        .player-slot.empty { opacity: 0.4; }
+        .player-slot.bot { background: rgba(255,215,0,0.15); }
+        .leave-btn { display: block; margin: 0 auto; background: rgba(255,82,82,0.3); border: 1px solid #ff5252; padding: 5px 15px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px; }
+        
+        #main-wrapper { display: none; flex-direction: row; gap: 8px; }
+        
+        #game-container { width: 990px; height: 610px; position: relative; border-radius: 10px; background: linear-gradient(180deg, #2d5a27, #1a3c16); border: 3px solid #2d1f0f; box-shadow: 0 6px 30px rgba(0,0,0,0.6); overflow: hidden; flex-shrink: 0; }
+        
+        #top-bar { position: absolute; top: 0; left: 0; width: 100%; height: 65px; padding: 3px 6px; display: flex; align-items: center; gap: 4px; background: linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.7)); z-index: 100; border-bottom: 2px solid var(--accent); }
+        
+        .resource-box { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 3px 8px; border-radius: 20px; border: 2px solid; min-width: 68px; }
+        .resource-box.sun { border-color: var(--accent); }
+        .resource-box.brain { border-color: var(--brain-pink); }
+        .resource-icon { font-size: 13px; margin-right: 2px; }
+        .resource-count { font-size: 12px; font-weight: 800; min-width: 28px; text-align: right; }
+        .resource-box.sun .resource-count { color: var(--accent); }
+        .resource-box.brain .resource-count { color: #F48FB1; }
+        
+        #wave-display { background: rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 4px; font-size: 10px; }
+        #wave-display .wave-num { color: var(--accent); font-weight: 700; }
+        
+        #player-info { display: flex; align-items: center; gap: 2px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        #player-info .team-icon { font-size: 13px; }
+        #player-info .name { font-weight: 700; color: var(--accent); max-width: 45px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        #entity-menu { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
+        .entity-card { min-width: 42px; height: 52px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .entity-card:hover { transform: translateY(-1px); background: rgba(255,255,255,0.2); }
+        .entity-card.selected { border-color: var(--accent); background: rgba(255,215,0,0.3); box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+        .entity-card.disabled { filter: grayscale(100%) brightness(0.5); cursor: not-allowed; }
+        .entity-card .icon { font-size: 17px; }
+        .entity-card .cost { font-size: 7px; font-weight: 700; background: rgba(0,0,0,0.6); padding: 1px 3px; border-radius: 3px; }
+        .entity-card.plant-card .cost { color: var(--accent); }
+        .entity-card.zombie-card { border-color: rgba(156,39,176,0.5); }
+        .entity-card.zombie-card.selected { border-color: var(--brain-pink); background: rgba(233,30,99,0.3); }
+        .entity-card.zombie-card .cost { color: #F48FB1; }
+        .entity-card.shovel { border-color: #795548; }
+        .entity-card.shovel.selected { border-color: #BCAAA4; background: rgba(121,85,72,0.3); }
+        
+        #game-board { position: absolute; top: 65px; left: 0; width: 100%; height: calc(100% - 65px); z-index: 50; }
+        #game-background { position: absolute; top: 65px; left: 0; width: 100%; height: calc(100% - 65px); background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px); background-size: 110px 109px; background-position: 0 0; z-index: 1; pointer-events: none; }
+        
+        .entity { position: absolute; pointer-events: none; }
+        .plant { width: 70px; height: 70px; z-index: 10; display: flex; justify-content: center; align-items: center; font-size: 38px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4)); }
+        .zombie { width: 60px; height: 80px; z-index: 12; display: flex; justify-content: center; align-items: center; font-size: 34px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4)); transition: left 0.05s linear; }
+        .zombie.slowed { filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4)) hue-rotate(180deg) brightness(1.2); }
+        .zombie.hit { filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4)) brightness(2) saturate(0); }
+        
+        .projectile { position: absolute; width: 8px; height: 8px; border-radius: 50%; z-index: 15; pointer-events: none; }
+        .pea-normal { background: radial-gradient(circle, #8bc34a, #4caf50); box-shadow: 0 0 3px #4caf50; }
+        .pea-ice { background: radial-gradient(circle, #b3e5fc, #00bcd4); box-shadow: 0 0 4px #00bcd4; }
+        
+        .sun-token, .brain-token { position: absolute; width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; z-index: 100; cursor: pointer; pointer-events: auto; display: flex; justify-content: center; align-items: center; font-size: 14px; animation: float-token 2s ease-in-out infinite; }
+        .sun-token { background: radial-gradient(circle, #fff9c4, #ffd700); box-shadow: 0 0 10px #ffd700; }
+        .brain-token { background: radial-gradient(circle, #f8bbd9, #E91E63); box-shadow: 0 0 10px #E91E63; }
+        @keyframes float-token { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        
+        .health-bar { position: absolute; width: 38px; height: 3px; background: rgba(0,0,0,0.6); border-radius: 1px; overflow: hidden; z-index: 20; pointer-events: none; }
+        .health-bar-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); transition: width 0.08s; }
+        
+        .cell-highlight { position: absolute; width: 110px; height: 109px; background: rgba(255,255,255,0.06); border: 2px dashed rgba(255,255,255,0.25); border-radius: 3px; pointer-events: none; z-index: 5; display: none; }
+        .cell-highlight.remove { border-color: #ff5252; background: rgba(255,82,82,0.1); }
+        
+        .floating-text { position: absolute; font-weight: 900; font-size: 11px; pointer-events: none; z-index: 200; text-shadow: 1px 1px 2px #000; animation: float-up 0.45s forwards; }
+        @keyframes float-up { to { transform: translateY(-22px); opacity: 0; } }
+        
+        .explosion { position: absolute; font-size: 45px; z-index: 50; pointer-events: none; animation: explode 0.28s forwards; }
+        @keyframes explode { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+        
+        .wave-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.85); padding: 12px 30px; border-radius: 8px; border: 2px solid var(--accent); font-size: 18px; font-weight: 900; z-index: 150; animation: wave-pop 1.5s forwards; }
+        @keyframes wave-pop { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 10% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 20% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } }
+        
+        .pause-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; justify-content: center; align-items: center; flex-direction: column; gap: 10px; }
+        .pause-overlay.active { display: flex; }
+        .pause-title { font-size: 24px; color: var(--accent); }
+        .pause-text { font-size: 12px; opacity: 0.7; }
+        
+        .row-selector { position: absolute; right: 10px; top: 65px; width: 50px; height: calc(100% - 65px); display: none; flex-direction: column; z-index: 60; }
+        .row-selector.active { display: flex; }
+        .row-btn { flex: 1; background: rgba(156,39,176,0.3); border: 1px solid rgba(156,39,176,0.5); cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; }
+        .row-btn:hover { background: rgba(233,30,99,0.5); }
+        
+        .row-highlight { position: absolute; left: 0; width: 100%; height: 109px; background: rgba(233,30,99,0.2); border: 2px dashed rgba(233,30,99,0.6); pointer-events: none; z-index: 5; display: none; }
+        
+        .exit-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,82,82,0.3); border: 1px solid #ff5252; padding: 3px 8px; border-radius: 4px; color: white; cursor: pointer; font-size: 9px; z-index: 110; }
+        
+        .leaderboard { margin-top: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; padding: 6px; border: 1px solid rgba(255,255,255,0.1); }
+        .leaderboard-title { font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+        .leaderboard-list { max-height: 120px; overflow-y: auto; font-size: 9px; }
+        .lb-item { padding: 3px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; }
+        .lb-winner { font-weight: 700; }
+        .lb-winner.plants { color: #8BC34A; }
+        .lb-winner.zombies { color: #CE93D8; }
+        .lb-info { opacity: 0.6; }
+        
+        #side-panel { width: 150px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+        
+        .side-box { background: rgba(0,0,0,0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+        .side-box-header { padding: 4px 6px; background: rgba(255,255,255,0.08); font-size: 9px; font-weight: 700; display: flex; justify-content: space-between; cursor: pointer; }
+        .side-box-content { padding: 4px; font-size: 8px; max-height: 100px; overflow-y: auto; }
+        .side-box-content.collapsed { display: none; }
+        
+        .log-entry { padding: 1px 0; border-bottom: 1px solid rgba(255,255,255,0.04); word-break: break-word; }
+        .chat-msg { padding: 1px 0; border-bottom: 1px solid rgba(255,255,255,0.04); word-break: break-word; }
+        .chat-msg .sender { color: var(--accent); font-weight: 700; }
+        
+        #chat-input { width: 100%; padding: 3px 5px; font-size: 8px; border: 1px solid rgba(255,255,255,0.15); border-radius: 2px; background: rgba(0,0,0,0.4); color: white; margin-top: 3px; }
+        
+        .connection-status { position: fixed; top: 3px; right: 3px; padding: 2px 6px; border-radius: 6px; font-size: 7px; z-index: 7000; }
+        .connection-status.connected { background: rgba(76,175,80,0.85); }
+        .connection-status.disconnected { background: rgba(255,82,82,0.85); }
+        
+        .game-end-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 8000; display: none; justify-content: center; align-items: center; }
+        .game-end-modal.active { display: flex; }
+        .game-end-content { background: linear-gradient(135deg, #1a2a1a, #0a150a); padding: 22px 40px; border-radius: 12px; border: 2px solid var(--accent); text-align: center; }
+        .game-end-title { font-size: 22px; margin-bottom: 6px; }
+        .game-end-winner { font-size: 16px; color: var(--accent); margin-bottom: 12px; }
+        .restart-btn { padding: 8px 25px; font-size: 13px; background: var(--primary); border: none; border-radius: 18px; color: white; cursor: pointer; }
+        
+        .reconnecting-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9000; display: none; justify-content: center; align-items: center; font-size: 16px; }
+        .reconnecting-overlay.active { display: flex; }
+    </style>
+</head>
+<body>
+    <div class="connection-status disconnected" id="connection-status">连接中</div>
+    <div class="reconnecting-overlay" id="reconnecting">🔄 重连中...</div>
+
+    <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-content">
+            <div class="welcome-title">🌻 植物大战僵尸 🧟</div>
+            <div class="welcome-subtitle">联机对战 - 断点续玩版</div>
+            <input type="text" id="name-input" class="name-input-large" placeholder="名字" maxlength="10" />
+            <br /><button id="enter-btn" class="enter-btn">进入大厅</button>
+        </div>
+    </div>
+
+    <div id="lobby" class="lobby">
+        <div class="lobby-header"><div class="lobby-title">🎮 大厅</div><div class="user-badge" style="cursor:pointer" onclick="editName()">✏️ <span id="display-name">玩家</span></div></div>
+        <div class="lobby-grid">
+            <div>
+                <div class="section" id="create-section">
+                    <div class="section-title">➕ 创建房间</div>
+                    <div class="mode-grid"><button class="mode-btn" data-mode="1">1v1</button><button class="mode-btn selected" data-mode="2">2v2</button><button class="mode-btn" data-mode="3">3v3</button><button class="mode-btn" data-mode="4">4v4</button><button class="mode-btn" data-mode="5">5v5</button></div>
+                    <div style="margin:6px 0;font-size:10px;">最大波数: <select id="max-waves" style="background:#222;color:white;border:1px solid #555;padding:2px;"><option value="10">10波</option><option value="15" selected>15波</option><option value="20">20波</option><option value="30">30波</option></select></div>
+                    <button id="create-btn" class="create-btn">创建房间</button>
+                </div>
+                <div id="waiting-room" class="waiting-room">
+                    <div class="waiting-title">⏳ 等待</div>
+                    <div class="waiting-slots"><div class="slot-column"><div class="slot-header plants"><span>🌻</span><span class="add-bot" id="add-plant-bot">🤖</span></div><div id="plant-slots"></div></div><div class="slot-column"><div class="slot-header zombies"><span>🧟</span><span class="add-bot" id="add-zombie-bot">🤖</span></div><div id="zombie-slots"></div></div></div>
+                    <button id="leave-btn" class="leave-btn">离开</button>
+                </div>
+                <div class="leaderboard">
+                    <div class="leaderboard-title">🏆 战绩榜</div>
+                    <div id="leaderboard-list" class="leaderboard-list"><div class="no-rooms">无记录</div></div>
+                </div>
+            </div>
+            <div class="room-section">
+                <div class="section-title">📋 房间 <span id="refresh-btn" style="cursor:pointer;opacity:0.6;">🔄</span></div>
+                <div id="room-list" class="room-list"><div class="no-rooms">加载中</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="team-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">选择阵营</div>
+            <div class="team-grid"><div class="team-card plants" id="select-plants"><span class="icon">🌻</span><span class="label">植物</span><span class="count" id="modal-plants-count">0/2</span></div><div class="team-card zombies" id="select-zombies"><span class="icon">🧟</span><span class="label">僵尸</span><span class="count" id="modal-zombies-count">0/2</span></div></div>
+            <button class="modal-close" id="modal-close">取消</button>
+        </div>
+    </div>
+
+    <div id="main-wrapper">
+        <div id="game-container">
+            <div id="game-background"></div>
+            <div id="top-bar">
+                <div class="resource-box sun" id="sun-box"><span class="resource-icon">☀️</span><span class="resource-count" id="sun-count">500</span></div>
+                <div class="resource-box brain" id="brain-box"><span class="resource-icon">🧠</span><span class="resource-count" id="brain-count">500</span></div>
+                <div id="wave-display">波 <span class="wave-num" id="wave-num">1</span>/<span id="max-waves-display">15</span></div>
+                <div id="player-info"><span class="team-icon" id="my-team-icon">🌻</span><span class="name" id="my-name-display">玩家</span></div>
+                <div id="entity-menu"></div>
+            </div>
+            <div id="game-board"></div>
+            <div class="row-selector" id="row-selector"></div>
+            <div class="pause-overlay" id="pause-overlay"><div class="pause-title">⏸️ 游戏暂停</div><div class="pause-text">等待玩家重连...</div></div>
+            <button class="exit-btn" id="exit-game-btn">🚪 退出</button>
+        </div>
+        <div id="side-panel">
+            <div class="side-box"><div class="side-box-header" onclick="toggleBox('log')"><span>📜 日志</span><span id="log-toggle">−</span></div><div class="side-box-content" id="action-log"></div></div>
+            <div class="side-box"><div class="side-box-header" onclick="toggleBox('chat')"><span>💬 聊天</span><span id="chat-toggle">−</span></div><div class="side-box-content" id="chat-messages"></div><div style="padding:3px;"><input type="text" id="chat-input" placeholder="Enter发送" maxlength="80" /></div></div>
+        </div>
+    </div>
+
+    <div id="game-end-modal" class="game-end-modal"><div class="game-end-content"><div class="game-end-title">🎮 游戏结束</div><div class="game-end-winner" id="winner-text">植物队胜利!</div><button class="restart-btn" onclick="location.reload()">返回大厅</button></div></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionAttempts: 10 });
+        
+        function getOderId() { let id = localStorage.getItem('pvz_oder_id'); if (!id) { id = 'u_' + Date.now() + Math.random().toString(36).substr(2, 8); localStorage.setItem('pvz_oder_id', id); } return id; }
+        let myName = localStorage.getItem('pvz_name') || '';
+        let myTeam = null, currentRoomId = null, selectedMode = 2, selectedEntity = null, isShovelMode = false;
+        
+        const $ = id => document.getElementById(id);
+        const gameState = { plants: new Map(), zombies: new Map(), projectiles: new Map() };
+        
+        window.toggleBox = (type) => { const c = $(type === 'log' ? 'action-log' : 'chat-messages'); const t = $(type + '-toggle'); c.classList.toggle('collapsed'); t.textContent = c.classList.contains('collapsed') ? '+' : '−'; };
+        
+        socket.on('connect', () => {
+            $('connection-status').textContent = '已连接'; $('connection-status').className = 'connection-status connected';
+            $('reconnecting').classList.remove('active');
+            socket.emit('restore', { oderId: getOderId(), name: myName }, (res) => {
+                if (res.restored) { myTeam = res.team; currentRoomId = res.roomId; if (res.state === 'playing') { $('welcome-screen').style.display = 'none'; $('lobby').style.display = 'none'; $('main-wrapper').style.display = 'flex'; initGame(res); restoreGameState(res.gameState); if (res.chatHistory) res.chatHistory.forEach(m => addChatMessage(m.sender, m.message)); } else if (res.state === 'waiting') { showLobby(); showWaitingRoom(res.mode, res.playerList); } else showLobby(); }
+                else if (myName) showLobby();
+            });
+        });
+        socket.on('disconnect', () => { $('connection-status').textContent = '断开'; $('connection-status').className = 'connection-status disconnected'; $('reconnecting').classList.add('active'); });
+        
+        $('name-input').value = myName;
+        $('enter-btn').onclick = () => { const name = $('name-input').value.trim(); if (!name) return alert('请输入名字'); myName = name; localStorage.setItem('pvz_name', name); socket.emit('restore', { oderId: getOderId(), name }, () => showLobby()); };
+        
+        function showLobby() { $('welcome-screen').style.display = 'none'; $('lobby').style.display = 'block'; $('main-wrapper').style.display = 'none'; $('display-name').textContent = myName; refreshRooms(); }
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedMode = parseInt(btn.dataset.mode); }; });
+        
+        function refreshRooms() { socket.emit('listRooms'); socket.emit('getLeaderboard'); }
+        $('refresh-btn').onclick = refreshRooms;
+        
+        socket.on('roomList', (rooms) => { $('room-list').innerHTML = rooms.length === 0 ? '<div class="no-rooms">无房间</div>' : rooms.map(r => `<div class="room-card" onclick="openRoom('${r.id}',${r.mode},${r.plants},${r.zombies})"><div class="room-header"><span class="room-name">${r.hostName}</span><span class="room-mode">${r.mode}v${r.mode}</span></div><div class="room-players">🌻${r.plants} 🧟${r.zombies}</div></div>`).join(''); });
+        
+        socket.on('leaderboard', (data) => {
+            if (!data || data.length === 0) {
+                $('leaderboard-list').innerHTML = '<div class="no-rooms">无记录</div>';
+                return;
+            }
+            $('leaderboard-list').innerHTML = data.map(g => {
+                const d = new Date(g.date);
+                const time = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+                return `<div class="lb-item"><span class="lb-winner ${g.winner}">${g.winner === 'plants' ? '🌻植物' : '🧟僵尸'}胜</span><span class="lb-info">第${g.waveNumber}波 ${g.mode}v${g.mode} ${time}</span></div>`;
+            }).join('');
+        });
+        
+        $('create-btn').onclick = () => { const maxWaves = parseInt($('max-waves').value) || 15; socket.emit('createRoom', { mode: selectedMode, maxWaves }, (res) => { if (res.success) { currentRoomId = res.roomId; openTeamModal(res.mode, 0, 0); } }); };
+        
+        window.editName = () => { const name = prompt('输入新名字 (留空清除):', myName); if (name !== null) { myName = name.trim() || '玩家'; localStorage.setItem('pvz_name', myName); $('display-name').textContent = myName; socket.emit('setName', myName); } };
+        
+        window.openRoom = (id, mode, plants, zombies) => { currentRoomId = id; openTeamModal(mode, plants, zombies); };
+        function openTeamModal(mode, plants, zombies) { $('modal-plants-count').textContent = `${plants}/${mode}`; $('modal-zombies-count').textContent = `${zombies}/${mode}`; $('team-modal').classList.add('active'); }
+        
+        $('modal-close').onclick = () => $('team-modal').classList.remove('active');
+        $('select-plants').onclick = () => joinTeam('plants');
+        $('select-zombies').onclick = () => joinTeam('zombies');
+        
+        function joinTeam(team) { socket.emit('joinRoom', { roomId: currentRoomId, team }, (res) => { if (res.success) { myTeam = team; $('team-modal').classList.remove('active'); showWaitingRoom(res.mode, res.playerList); } else alert(res.error); }); }
+        function showWaitingRoom(mode, list) { $('create-section').style.display = 'none'; $('waiting-room').style.display = 'block'; updateSlots(mode, list); }
+        function updateSlots(mode, list) { $('plant-slots').innerHTML = Array(mode).fill().map((_, i) => { const p = list.plants[i]; return `<div class="player-slot ${p ? (p.isBot ? 'bot' : '') : 'empty'}">${p ? (p.isBot ? '🤖' : '👤') + p.name : '等待'}</div>`; }).join(''); $('zombie-slots').innerHTML = Array(mode).fill().map((_, i) => { const p = list.zombies[i]; return `<div class="player-slot ${p ? (p.isBot ? 'bot' : '') : 'empty'}">${p ? (p.isBot ? '🤖' : '👤') + p.name : '等待'}</div>`; }).join(''); }
+        
+        $('add-plant-bot').onclick = () => socket.emit('addBot', { team: 'plants' }, () => {});
+        $('add-zombie-bot').onclick = () => socket.emit('addBot', { team: 'zombies' }, () => {});
+        $('leave-btn').onclick = () => { socket.emit('leaveRoom'); $('waiting-room').style.display = 'none'; $('create-section').style.display = 'block'; refreshRooms(); };
+        
+        socket.on('playerUpdate', (data) => updateSlots(data.info.mode, data.playerList));
+        socket.on('gameStart', (data) => { $('lobby').style.display = 'none'; $('main-wrapper').style.display = 'flex'; initGame(data); });
+        
+        $('chat-input').onkeydown = (e) => { if (e.key === 'Enter' && $('chat-input').value.trim()) { socket.emit('chat', { message: $('chat-input').value.trim() }); $('chat-input').value = ''; } };
+        socket.on('chat', (msg) => addChatMessage(msg.sender, msg.message));
+        function addChatMessage(sender, message) { const el = document.createElement('div'); el.className = 'chat-msg'; el.innerHTML = `<span class="sender">${sender}:</span> ${message}`; $('chat-messages').appendChild(el); $('chat-messages').scrollTop = $('chat-messages').scrollHeight; }
+        function log(msg) { $('action-log').innerHTML = `<div class="log-entry">${msg}</div>` + $('action-log').innerHTML; if ($('action-log').children.length > 12) $('action-log').lastChild.remove(); }
+        
+        function initGame(data) {
+            gameState.plants.clear(); gameState.zombies.clear(); gameState.projectiles.clear();
+            const gameBoard = $('game-board'); gameBoard.innerHTML = '';
+            const cellHighlight = document.createElement('div'); cellHighlight.className = 'cell-highlight'; gameBoard.appendChild(cellHighlight);
+            
+            $('my-team-icon').textContent = myTeam === 'plants' ? '🌻' : '🧟';
+            $('my-name-display').textContent = myName;
+            $('sun-count').textContent = data.sunCount || 500;
+            $('brain-count').textContent = data.brainCount || 500;
+            $('wave-num').textContent = data.waveNumber || 1;
+            $('sun-box').style.display = myTeam === 'plants' ? 'flex' : 'none';
+            $('brain-box').style.display = myTeam === 'zombies' ? 'flex' : 'none';
+            $('max-waves-display').textContent = data.maxWaves || 15;
+            $('action-log').innerHTML = ''; $('chat-messages').innerHTML = '';
+            
+            // Setup row selector for zombies
+            const rowSelector = $('row-selector');
+            rowSelector.innerHTML = '';
+            
+            // Create row highlight element
+            const rowHighlight = document.createElement('div');
+            rowHighlight.className = 'row-highlight';
+            gameBoard.appendChild(rowHighlight);
+            
+            if (myTeam === 'zombies') {
+                for (let r = 0; r < 5; r++) {
+                    const btn = document.createElement('div');
+                    btn.className = 'row-btn';
+                    btn.textContent = '←';
+                    btn.onmouseenter = () => {
+                        rowHighlight.style.display = 'block';
+                        rowHighlight.style.top = (r * 109) + 'px';
+                    };
+                    btn.onmouseleave = () => {
+                        rowHighlight.style.display = 'none';
+                    };
+                    btn.onclick = () => {
+                        if (selectedEntity && selectedEntity !== 'shovel') {
+                            socket.emit('spawnZombie', { type: selectedEntity, row: r });
+                            selectedEntity = null;
+                            document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected'));
+                            rowSelector.classList.remove('active');
+                            rowHighlight.style.display = 'none';
+                        }
+                    };
+                    rowSelector.appendChild(btn);
+                }
+            }
+            
+            // Exit game button
+            $('exit-game-btn').onclick = () => {
+                if (confirm('确定退出游戏？')) {
+                    socket.emit('leaveGame', true);
+                    showLobby();
+                }
+            };
+            
+            const entityMenu = $('entity-menu');
+            if (myTeam === 'plants') {
+                entityMenu.innerHTML = `<div class="entity-card plant-card" data-type="sunflower" data-cost="50"><div class="icon">🌻</div><div class="cost">50</div></div><div class="entity-card plant-card" data-type="peashooter" data-cost="100"><div class="icon">🌱</div><div class="cost">100</div></div><div class="entity-card plant-card" data-type="repeater" data-cost="200"><div class="icon">🌿</div><div class="cost">200</div></div><div class="entity-card plant-card" data-type="snowpea" data-cost="175"><div class="icon">❄️</div><div class="cost">175</div></div><div class="entity-card plant-card" data-type="torchwood" data-cost="175"><div class="icon">🔥</div><div class="cost">175</div></div><div class="entity-card plant-card" data-type="wallnut" data-cost="75"><div class="icon">🌰</div><div class="cost">75</div></div><div class="entity-card plant-card" data-type="tallnut" data-cost="125"><div class="icon">🥜</div><div class="cost">125</div></div><div class="entity-card plant-card" data-type="chomper" data-cost="150"><div class="icon">🐊</div><div class="cost">150</div></div><div class="entity-card plant-card" data-type="potatomine" data-cost="25"><div class="icon">🥔</div><div class="cost">25</div></div><div class="entity-card plant-card" data-type="cherrybomb" data-cost="175"><div class="icon">🍒</div><div class="cost">175</div></div><div class="entity-card shovel" data-type="shovel"><div class="icon">🧹</div><div class="cost">铲</div></div>`;
+            } else {
+                entityMenu.innerHTML = `<div class="entity-card zombie-card wave-card" data-type="wave" data-cost="800"><div class="icon">🌊</div><div class="cost">800</div></div><div class="entity-card zombie-card" data-type="normal" data-cost="50"><div class="icon">🧟</div><div class="cost">50</div></div><div class="entity-card zombie-card" data-type="cone" data-cost="100"><div class="icon">🧟‍♂️</div><div class="cost">100</div></div><div class="entity-card zombie-card" data-type="bucket" data-cost="175"><div class="icon">🪣</div><div class="cost">175</div></div><div class="entity-card zombie-card" data-type="polevaulter" data-cost="125"><div class="icon">🏃</div><div class="cost">125</div></div><div class="entity-card zombie-card" data-type="flag" data-cost="75"><div class="icon">🎌</div><div class="cost">75</div></div><div class="entity-card zombie-card" data-type="newspaper" data-cost="80"><div class="icon">📰</div><div class="cost">80</div></div><div class="entity-card zombie-card" data-type="football" data-cost="275"><div class="icon">🏈</div><div class="cost">275</div></div><div class="entity-card zombie-card" data-type="brain" data-cost="75"><div class="icon">🧠</div><div class="cost">75</div></div>`;
+            }
+            
+            document.querySelectorAll('.entity-card').forEach(card => { card.onclick = () => {
+                if (card.classList.contains('disabled')) return;
+                
+                // Wave card is instant action - no selection needed
+                if (card.dataset.type === 'wave') {
+                    socket.emit('buyWave');
+                    return;
+                }
+                
+                // Toggle: if already selected, deselect
+                if (card.classList.contains('selected')) {
+                    selectedEntity = null;
+                    isShovelMode = false;
+                    card.classList.remove('selected');
+                    cellHighlight.style.display = 'none';
+                    cellHighlight.classList.remove('remove');
+                    $('row-selector').classList.remove('active');
+                    return;
+                }
+                selectedEntity = card.dataset.type;
+                isShovelMode = selectedEntity === 'shovel';
+                document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                cellHighlight.classList.toggle('remove', isShovelMode);
+                // Show row selector for zombies
+                if (myTeam === 'zombies' && !isShovelMode) {
+                    $('row-selector').classList.add('active');
+                } else {
+                    $('row-selector').classList.remove('active');
+                }
+            }; });
+            
+            gameBoard.onmousemove = (e) => { if (!selectedEntity || (myTeam === 'zombies' && !isShovelMode)) { cellHighlight.style.display = 'none'; return; } const rect = gameBoard.getBoundingClientRect(); const col = Math.floor((e.clientX - rect.left) / 110); const row = Math.floor((e.clientY - rect.top) / 109); if (col >= 0 && col < 9 && row >= 0 && row < 5) { cellHighlight.style.display = 'block'; cellHighlight.style.left = (col * 110) + 'px'; cellHighlight.style.top = (row * 109) + 'px'; } else cellHighlight.style.display = 'none'; };
+            
+            gameBoard.onclick = (e) => {
+                if (e.target.classList.contains('sun-token') || e.target.classList.contains('brain-token')) return;
+                if (!selectedEntity) return;
+                const rect = gameBoard.getBoundingClientRect();
+                const col = Math.floor((e.clientX - rect.left) / 110);
+                const row = Math.floor((e.clientY - rect.top) / 109);
+                if (col < 0 || col > 8 || row < 0 || row > 4) return;
+                
+                if (isShovelMode) {
+                    socket.emit('removePlant', { col, row });
+                    // Deselect shovel after use
+                    selectedEntity = null;
+                    isShovelMode = false;
+                    document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected'));
+                    cellHighlight.style.display = 'none';
+                    cellHighlight.classList.remove('remove');
+                } else if (myTeam === 'plants') {
+                    socket.emit('placePlant', { type: selectedEntity, col, row });
+                    selectedEntity = null;
+                    document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected'));
+                    cellHighlight.style.display = 'none';
+                } else {
+                    socket.emit('spawnZombie', { type: selectedEntity, row });
+                }
+            };
+            
+            gameBoard.oncontextmenu = (e) => { e.preventDefault(); selectedEntity = null; isShovelMode = false; document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected')); cellHighlight.style.display = 'none'; cellHighlight.classList.remove('remove'); $('row-selector').classList.remove('active'); };
+            
+            setupGameEvents();
+        }
+        
+        function restoreGameState(gs) {
+            if (!gs) return;
+            gs.plants.forEach(p => renderPlant({ type: p.type, col: p.col, row: p.row, hp: p.hp, maxHp: p.maxHp, armed: p.armed }));
+            gs.zombies.forEach(z => { renderZombie({ id: z.id, type: z.type, row: z.row, hp: z.hp, maxHp: z.maxHp }); const zs = gameState.zombies.get(z.id); if (zs) { zs.el.style.left = z.x + 'px'; zs.hpBar.style.left = (z.x + 10) + 'px'; if (z.slowed) zs.el.classList.add('slowed'); } });
+            $('sun-count').textContent = gs.sunCount; $('brain-count').textContent = gs.brainCount; $('wave-num').textContent = gs.waveNumber;
+            updateCardStates();
+        }
+        
+        function setupGameEvents() {
+            socket.off('plantPlaced').on('plantPlaced', (d) => { 
+                renderPlant(d); 
+                log(`🌻 ${d.by} 放置 ${d.type}`); 
+                if (d.sunCount !== undefined) { $('sun-count').textContent = d.sunCount; updateCardStates(); }
+                // Apply cooldown effect on card
+                if (d.rechargeMs && myTeam === 'plants') {
+                    const card = document.querySelector(`.entity-card[data-type="${d.type}"]`);
+                    if (card) startCardCooldown(card, d.rechargeMs);
+                }
+            });
+            socket.off('plantRemoved').on('plantRemoved', (d) => { removePlant(d.col, d.row); log(`🧹 ${d.by} 铲除`); if (d.sunCount !== undefined) { $('sun-count').textContent = d.sunCount; updateCardStates(); } });
+            socket.off('zombieSpawned').on('zombieSpawned', (d) => { 
+                renderZombie(d); 
+                log(`🧟 ${d.by} 放置 ${d.type}`); 
+                if (d.brainCount !== undefined) { $('brain-count').textContent = d.brainCount; updateCardStates(); }
+                // Apply cooldown effect on card
+                if (d.rechargeMs && myTeam === 'zombies') {
+                    const card = document.querySelector(`.entity-card[data-type="${d.type}"]`);
+                    if (card) startCardCooldown(card, d.rechargeMs);
+                }
+            });
+            socket.off('shoot').on('shoot', (d) => renderProjectile(d));
+            socket.off('peaFire').on('peaFire', (d) => { 
+                const pea = document.querySelector(`[data-pea-id="${d.peaId}"]`);
+                if (pea) { pea.textContent = '🔥'; pea.style.filter = 'hue-rotate(30deg)'; }
+            });
+            socket.off('peaHit').on('peaHit', (d) => { removeProjectile(d.peaId); highlightZombie(d.zombieId); updateZombieHp(d.zombieId, d.zombieHp); if (d.fire) createFloatingText('🔥', d.zombieId ? 0 : 0, 0, 'orange'); });
+            socket.off('peaMiss').on('peaMiss', (d) => removeProjectile(d.peaId));
+            socket.off('plantDamage').on('plantDamage', (d) => updatePlantHp(d.col, d.row, d.hp));
+            socket.off('plantDie').on('plantDie', (d) => removePlant(d.col, d.row));
+            socket.off('zombieDie').on('zombieDie', (d) => removeZombie(d.id));
+            socket.off('chomperEat').on('chomperEat', (d) => { createFloatingText('嗷!', d.col * 110 + 45, d.row * 109 + 45, 'lime'); removeZombie(d.zombieId); });
+            socket.off('chomperReady').on('chomperReady', (d) => { const p = gameState.plants.get(`${d.col},${d.row}`); if (p) p.el.style.filter = ''; });
+            socket.off('mineArmed').on('mineArmed', (d) => { const p = gameState.plants.get(`${d.col},${d.row}`); if (p) { p.el.style.opacity = '1'; createFloatingText('!', d.col * 110 + 45, d.row * 109 + 25, 'yellow'); } });
+            socket.off('mineExplode').on('mineExplode', (d) => { createExplosion(d.col * 110 + 45, d.row * 109 + 45, '💥'); removePlant(d.col, d.row); log('💥 土豆爆炸!'); });
+            socket.off('cherryExplode').on('cherryExplode', (d) => { createExplosion(d.col * 110 + 45, d.row * 109 + 45, '💥💥'); removePlant(d.col, d.row); });
+            socket.off('plantSun').on('plantSun', (d) => createSun(d.col * 110 + 45, d.row * 109 + 45));
+            socket.off('skySun').on('skySun', (d) => createSun(d.x, d.y));
+            socket.off('skyBrain').on('skyBrain', (d) => createBrain(d.x, d.y));
+            socket.off('zombieBrain').on('zombieBrain', (d) => createBrain(d.x, d.row * 109 + 45));
+            socket.off('sunUpdate').on('sunUpdate', (d) => { $('sun-count').textContent = d.sunCount; updateCardStates(); });
+            socket.off('brainUpdate').on('brainUpdate', (d) => { $('brain-count').textContent = d.brainCount; updateCardStates(); });
+            socket.off('waveStart').on('waveStart', (d) => { 
+                $('wave-num').textContent = d.waveNumber; 
+                if (d.isFinalWave) {
+                    showWaveBanner('最后一波!', d.zombieCount); 
+                    log('⚠️ 最后一波! 坚持住!');
+                } else {
+                    showWaveBanner(d.waveNumber, d.zombieCount); 
+                    log(`🌊 第${d.waveNumber}波 (${d.zombieCount}只)`);
+                }
+            });
+            socket.off('gameUpdate').on('gameUpdate', (d) => { $('sun-count').textContent = d.sunCount; $('brain-count').textContent = d.brainCount; $('wave-num').textContent = d.waveNumber; updateCardStates(); d.zombies.forEach(z => { const zs = gameState.zombies.get(z.id); if (zs) { zs.el.style.left = z.x + 'px'; zs.hpBar.style.left = (z.x + 10) + 'px'; updateZombieHp(z.id, z.hp); if (z.slowed) zs.el.classList.add('slowed'); } }); });
+            socket.off('gameEnd').on('gameEnd', (d) => { $('winner-text').textContent = d.winner === 'plants' ? '🌻 植物胜!' : '🧟 僵尸胜!'; $('game-end-modal').classList.add('active'); });
+            socket.off('gamePaused').on('gamePaused', (d) => { $('pause-overlay').classList.add('active'); });
+            socket.off('gameResumed').on('gameResumed', (d) => { $('pause-overlay').classList.remove('active'); });
+        }
+        
+        const plantIcons = { sunflower:'🌻', peashooter:'🌱', repeater:'🌿', snowpea:'❄️', torchwood:'🔥', wallnut:'🌰', tallnut:'🥜', chomper:'🐊', potatomine:'🥔', cherrybomb:'🍒' };
+        const zombieIcons = { normal:'🧟', cone:'🧟‍♂️', bucket:'🪣', polevaulter:'🏃', flag:'🎌', newspaper:'📰', football:'🏈', brain:'🧠' };
+        
+        // Card cooldown visual effect
+        function startCardCooldown(card, durationMs) {
+            let overlay = card.querySelector('.cooldown-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'cooldown-overlay';
+                overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);pointer-events:none;';
+                card.style.position = 'relative';
+                card.appendChild(overlay);
+            }
+            overlay.style.display = 'block';
+            card.classList.add('on-cooldown');
+            const startTime = Date.now();
+            const tick = () => {
+                const elapsed = Date.now() - startTime;
+                const pct = Math.min(100, (elapsed / durationMs) * 100);
+                overlay.style.height = (100 - pct) + '%';
+                if (elapsed < durationMs) {
+                    requestAnimationFrame(tick);
+                } else {
+                    overlay.style.display = 'none';
+                    card.classList.remove('on-cooldown');
+                }
+            };
+            tick();
+        }
+        
+        function updateCardStates() { const sun = parseInt($('sun-count').textContent); const brain = parseInt($('brain-count').textContent); document.querySelectorAll('.entity-card.plant-card').forEach(c => { const onCd = c.classList.contains('on-cooldown'); c.classList.toggle('disabled', sun < parseInt(c.dataset.cost) || onCd); }); document.querySelectorAll('.entity-card.zombie-card').forEach(c => { const onCd = c.classList.contains('on-cooldown'); c.classList.toggle('disabled', brain < parseInt(c.dataset.cost) || onCd); }); }
+        
+        function renderPlant(d) { const key = `${d.col},${d.row}`; if (gameState.plants.has(key)) return; const el = document.createElement('div'); el.className = 'entity plant'; el.textContent = plantIcons[d.type] || '🌱'; el.style.left = (d.col * 110 + 20) + 'px'; el.style.top = (d.row * 109 + 15) + 'px'; if (d.type === 'potatomine' && !d.armed) el.style.opacity = '0.5'; $('game-board').appendChild(el); const hpBar = createHealthBar(d.col * 110 + 35, d.row * 109 + 5); $('game-board').appendChild(hpBar); gameState.plants.set(key, { el, hpBar, hp: d.hp, maxHp: d.maxHp || d.hp }); }
+        function updatePlantHp(col, row, hp) { const p = gameState.plants.get(`${col},${row}`); if (p) { p.hp = hp; const pct = Math.max(0, hp / p.maxHp * 100); p.hpBar.querySelector('.health-bar-fill').style.width = pct + '%'; p.hpBar.querySelector('.health-bar-fill').style.background = pct < 30 ? '#ff5252' : (pct < 60 ? 'orange' : '#4caf50'); } }
+        function removePlant(col, row) { const key = `${col},${row}`; const p = gameState.plants.get(key); if (p) { p.el.remove(); p.hpBar.remove(); gameState.plants.delete(key); } }
+        
+        function renderZombie(d) { if (gameState.zombies.has(d.id)) return; const el = document.createElement('div'); el.className = 'entity zombie'; el.textContent = zombieIcons[d.type] || '🧟'; el.style.left = '930px'; el.style.top = (d.row * 109 + 8) + 'px'; $('game-board').appendChild(el); const hpBar = createHealthBar(930 + 10, d.row * 109 + 2); $('game-board').appendChild(hpBar); gameState.zombies.set(d.id, { el, hpBar, hp: d.hp, maxHp: d.maxHp || d.hp, row: d.row }); }
+        function updateZombieHp(id, hp) { const z = gameState.zombies.get(id); if (z) { z.hp = hp; const pct = Math.max(0, hp / z.maxHp * 100); z.hpBar.querySelector('.health-bar-fill').style.width = pct + '%'; z.hpBar.querySelector('.health-bar-fill').style.background = pct < 30 ? '#ff5252' : (pct < 60 ? 'orange' : '#4caf50'); } }
+        function highlightZombie(id) { const z = gameState.zombies.get(id); if (z) { z.el.classList.add('hit'); setTimeout(() => z.el.classList.remove('hit'), 100); } }
+        function removeZombie(id) { const z = gameState.zombies.get(id); if (z) { z.el.remove(); z.hpBar.remove(); gameState.zombies.delete(id); } }
+        
+        function createHealthBar(x, y) { const bar = document.createElement('div'); bar.className = 'health-bar'; bar.style.left = x + 'px'; bar.style.top = y + 'px'; bar.innerHTML = '<div class="health-bar-fill" style="width:100%"></div>'; return bar; }
+        function renderProjectile(d) { const pea = document.createElement('div'); pea.className = `projectile pea-${d.type}`; pea.id = d.id; pea.dataset.peaId = d.id; pea.style.left = d.x + 'px'; pea.style.top = d.y + 'px'; $('game-board').appendChild(pea); gameState.projectiles.set(d.id, pea); let x = d.x; const int = setInterval(() => { x += 10; pea.style.left = x + 'px'; if (x > 1000 || !pea.parentElement) clearInterval(int); }, 16); setTimeout(() => { clearInterval(int); if (pea.parentElement) pea.remove(); gameState.projectiles.delete(d.id); }, 1300); }
+        function removeProjectile(id) { const pea = gameState.projectiles.get(id); if (pea) { pea.remove(); gameState.projectiles.delete(id); } }
+        function createSun(x, y) { const sun = document.createElement('div'); sun.className = 'sun-token'; sun.textContent = '☀️'; sun.style.left = x + 'px'; sun.style.top = y + 'px'; $('game-board').appendChild(sun); sun.onclick = (e) => { e.stopPropagation(); socket.emit('collectSun', { amount: 25 }); createFloatingText('+25', x, y, '#FFD700'); sun.remove(); }; setTimeout(() => { if (sun.parentElement) sun.remove(); }, 6500); }
+        function createBrain(x, y) { const brain = document.createElement('div'); brain.className = 'brain-token'; brain.textContent = '🧠'; brain.style.left = x + 'px'; brain.style.top = y + 'px'; $('game-board').appendChild(brain); brain.onclick = (e) => { e.stopPropagation(); socket.emit('collectBrain', { amount: 25 }); createFloatingText('+25', x, y, '#E91E63'); brain.remove(); }; setTimeout(() => { if (brain.parentElement) brain.remove(); }, 6500); }
+        function createFloatingText(text, x, y, color) { const ft = document.createElement('div'); ft.className = 'floating-text'; ft.textContent = text; ft.style.left = x + 'px'; ft.style.top = y + 'px'; ft.style.color = color; $('game-board').appendChild(ft); setTimeout(() => ft.remove(), 450); }
+        function createExplosion(x, y, emoji) { const exp = document.createElement('div'); exp.className = 'explosion'; exp.textContent = emoji; exp.style.left = (x - 22) + 'px'; exp.style.top = (y - 22) + 'px'; $('game-board').appendChild(exp); setTimeout(() => exp.remove(), 280); }
+        function showWaveBanner(num, count) { const banner = document.createElement('div'); banner.className = 'wave-banner'; banner.innerHTML = `🌊 第${num}波 <span style="font-size:13px;opacity:0.8;">(${count}只)</span>`; $('game-board').appendChild(banner); setTimeout(() => banner.remove(), 1500); }
+    </script>
+</body>
+</html>

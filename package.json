@@ -1,0 +1,14 @@
+{
+  "name": "pvz-multiplayer",
+  "version": "1.0.0",
+  "description": "Plants vs Zombies 5v5 Multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1"
+  }
+}
