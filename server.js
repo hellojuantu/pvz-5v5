@@ -671,20 +671,28 @@ class GameRoom {
     this.broadcast('brainUpdate', { brainCount: this.brainCount });
   }
 
-  endGame(winner) {
+  endGame(winner, extraPlayerName = null, extraPlayerTeam = null) {
     this.state = 'ended';
     this.stopLoops();
     // Get player names for leaderboard
-    const plantNames =
+    let plantNames =
       this.plantPlayers
         .filter((p) => !p.isBot)
         .map((p) => p.name)
-        .join(', ') || 'AI';
-    const zombieNames =
+        .join(', ') || '';
+    let zombieNames =
       this.zombiePlayers
         .filter((p) => !p.isBot)
         .map((p) => p.name)
-        .join(', ') || 'AI';
+        .join(', ') || '';
+    // Add extra player name (for surrender case where player was already removed)
+    if (extraPlayerName && extraPlayerTeam === 'plants') {
+      plantNames = plantNames ? `${plantNames}, ${extraPlayerName}` : extraPlayerName;
+    } else if (extraPlayerName && extraPlayerTeam === 'zombies') {
+      zombieNames = zombieNames ? `${zombieNames}, ${extraPlayerName}` : extraPlayerName;
+    }
+    plantNames = plantNames || 'AI';
+    zombieNames = zombieNames || 'AI';
     persistedData.leaderboard.push({
       date: new Date().toISOString(),
       winner,
@@ -1016,6 +1024,7 @@ io.on('connection', (socket) => {
     if (currentRoom) {
       const room = currentRoom;
       const surrenderingTeam = currentTeam;
+      const surrenderingName = playerName; // Save name before removal
 
       // Remove player from room's persisted player list
       room.plantPlayers = room.plantPlayers.filter((p) => p.oderId !== oderId);
@@ -1028,9 +1037,9 @@ io.on('connection', (socket) => {
         const remainingZombies = room.zombiePlayers.filter((p) => !p.isBot);
 
         if (surrenderingTeam === 'plants' && remainingPlants.length === 0) {
-          room.endGame('zombies');
+          room.endGame('zombies', surrenderingName, 'plants');
         } else if (surrenderingTeam === 'zombies' && remainingZombies.length === 0) {
-          room.endGame('plants');
+          room.endGame('plants', surrenderingName, 'zombies');
         } else {
           // Still have real players, just pause
           const realPlayers = [...room.plantPlayers, ...room.zombiePlayers].filter((p) => !p.isBot);

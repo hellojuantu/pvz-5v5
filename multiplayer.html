@@ -426,6 +426,9 @@
       #wave-display .wave-num {
         color: var(--accent);
         font-weight: 700;
+        display: inline-block;
+        min-width: 1.2em;
+        text-align: center;
       }
 
       #player-info {
@@ -965,10 +968,16 @@
     </style>
   </head>
   <body>
+    <div
+      id="loading-overlay"
+      style="position: fixed; inset: 0; background: #111; z-index: 9999; display: flex; justify-content: center; align-items: center; font-size: 24px"
+    >
+      🌻 加载中...
+    </div>
     <div class="connection-status disconnected" id="connection-status">连接中</div>
     <div class="reconnecting-overlay" id="reconnecting">🔄 重连中...</div>
 
-    <div id="welcome-screen" class="welcome-screen">
+    <div id="welcome-screen" class="welcome-screen" style="display: none">
       <div class="welcome-content">
         <div class="welcome-title">🌻 植物大战僵尸 🧟</div>
         <div class="welcome-subtitle">5v5 联机对战</div>
@@ -1165,6 +1174,7 @@
       };
 
       socket.on('connect', () => {
+        $('loading-overlay').style.display = 'none';
         $('connection-status').textContent = '已连接';
         $('connection-status').className = 'connection-status connected';
         $('reconnecting').classList.remove('active');
@@ -1184,6 +1194,7 @@
               showWaitingRoom(res.mode, res.playerList);
             } else showLobby();
           } else if (myName) showLobby();
+          else $('welcome-screen').style.display = 'flex';
         });
       });
       socket.on('disconnect', () => {
