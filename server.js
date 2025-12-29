@@ -8,6 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
+app.get('/healthz', (req, res) => res.status(200).send('OK'));
 app.use(express.static(path.join(__dirname)));
 
 const rooms = new Map();
