@@ -82,14 +82,14 @@ const PLANT_STATS = {
 };
 
 const ZOMBIE_STATS = {
-    normal: { hp: 200, speed: 0.3, damage: 30, cost: 50, recharge: 3000 },
-    cone: { hp: 500, speed: 0.28, damage: 30, cost: 100, recharge: 5000 },
-    bucket: { hp: 900, speed: 0.22, damage: 30, cost: 175, recharge: 8000 },
-    flag: { hp: 180, speed: 0.45, damage: 35, cost: 75, recharge: 4000 },
-    newspaper: { hp: 300, speed: 0.25, damage: 25, cost: 80, recharge: 5000 },
-    polevaulter: { hp: 350, speed: 0.4, damage: 30, cost: 125, canJump: true, recharge: 6000 },
-    football: { hp: 1200, speed: 0.38, damage: 45, cost: 275, recharge: 15000 },
-    brain: { hp: 25, speed: 0.18, damage: 0, cost: 75, brainInterval: 8000, recharge: 4000 }
+    normal: { hp: 200, speed: 0.3, damage: 30, cost: 50, recharge: 2000 },
+    cone: { hp: 500, speed: 0.28, damage: 30, cost: 100, recharge: 3000 },
+    bucket: { hp: 900, speed: 0.22, damage: 30, cost: 175, recharge: 5000 },
+    flag: { hp: 180, speed: 0.45, damage: 35, cost: 75, recharge: 2500 },
+    newspaper: { hp: 300, speed: 0.25, damage: 25, cost: 80, recharge: 3000 },
+    polevaulter: { hp: 350, speed: 0.4, damage: 30, cost: 125, canJump: true, recharge: 4000 },
+    football: { hp: 1200, speed: 0.38, damage: 45, cost: 275, recharge: 10000 },
+    brain: { hp: 25, speed: 0.18, damage: 0, cost: 50, brainInterval: 6000, recharge: 3000 }
 };
 
 class GameRoom {
@@ -225,8 +225,8 @@ class GameRoom {
         
         this.waveNumber++;
         const isFinalWave = this.waveNumber === this.maxWaves;
-        // More zombies per wave: wave 1 = 2, wave 5 = 4, wave 10 = 6, wave 15 = 8
-        const baseCount = Math.min(2 + Math.floor(this.waveNumber / 2), 10);
+        // Wave N = N zombies (wave 1 = 1, wave 2 = 2, wave 10 = 10, max 15)
+        const baseCount = Math.min(this.waveNumber, 15);
         this.broadcast('waveStart', { waveNumber: this.waveNumber, maxWaves: this.maxWaves, zombieCount: baseCount, auto: true, isFinalWave });
         
         for (let i = 0; i < baseCount; i++) {
@@ -241,7 +241,7 @@ class GameRoom {
                 else if (this.waveNumber <= 12) types = ['cone', 'bucket', 'bucket', 'football', 'polevaulter'];
                 else types = ['bucket', 'bucket', 'football', 'football', 'polevaulter'];
                 this.spawnZombie(types[Math.floor(Math.random() * types.length)], row, '🌊自动');
-            }, i * 800); // Faster spawning
+            }, i * 600); // Faster spawning
         }
     }
 
@@ -331,7 +331,9 @@ class GameRoom {
 
             if (zombie.type === 'brain') {
                 zombie.brainTimer = (zombie.brainTimer || 0) + 16;
-                if (zombie.brainTimer >= ZOMBIE_STATS.brain.brainInterval) { zombie.brainTimer = 0; this.broadcastTo('zombies', 'zombieBrain', { id: zombie.id, x: zombie.x, row: zombie.row }); }
+                // Brain production speeds up with wave: wave 1 = 6s, wave 10 = 3s, wave 15 = 2s
+                const brainInterval = Math.max(2000, 6000 - this.waveNumber * 300);
+                if (zombie.brainTimer >= brainInterval) { zombie.brainTimer = 0; this.broadcastTo('zombies', 'zombieBrain', { id: zombie.id, x: zombie.x, row: zombie.row }); }
             }
 
             const targetPlant = this.plants.find(p => p.row === zombie.row && p.hp > 0 && p.col * CELL_SIZE + 70 > zombie.x && p.col * CELL_SIZE < zombie.x + 40);
@@ -451,7 +453,17 @@ class GameRoom {
     endGame(winner) {
         this.state = 'ended';
         this.stopLoops();
-        persistedData.leaderboard.push({ date: new Date().toISOString(), winner, waveNumber: this.waveNumber, mode: this.mode });
+        // Get player names for leaderboard
+        const plantNames = this.plantPlayers.filter(p => !p.isBot).map(p => p.name).join(', ') || 'AI';
+        const zombieNames = this.zombiePlayers.filter(p => !p.isBot).map(p => p.name).join(', ') || 'AI';
+        persistedData.leaderboard.push({ 
+            date: new Date().toISOString(), 
+            winner, 
+            waveNumber: this.waveNumber, 
+            mode: this.mode,
+            plantPlayers: plantNames,
+            zombiePlayers: zombieNames
+        });
         persistedData.leaderboard = persistedData.leaderboard.slice(-50);
         [...this.plantPlayers, ...this.zombiePlayers].forEach(p => { if (p.oderId) sessions.delete(p.oderId); });
         delete persistedData.roomStates[this.id];

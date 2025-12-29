@@ -54,7 +54,7 @@
         .team-card .count { font-size: 9px; opacity: 0.7; }
         .modal-close { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 4px; color: white; cursor: pointer; font-size: 10px; }
         
-        .waiting-room { display: none; }
+        .waiting-room { display: none; margin-top: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.1); }
         .waiting-title { font-size: 18px; margin-bottom: 6px; text-align: center; }
         .waiting-slots { display: flex; gap: 14px; justify-content: center; margin-bottom: 10px; }
         .slot-column { background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; min-width: 120px; }
@@ -283,7 +283,7 @@
         $('name-input').value = myName;
         $('enter-btn').onclick = () => { const name = $('name-input').value.trim(); if (!name) return alert('请输入名字'); myName = name; localStorage.setItem('pvz_name', name); socket.emit('restore', { oderId: getOderId(), name }, () => showLobby()); };
         
-        function showLobby() { $('welcome-screen').style.display = 'none'; $('lobby').style.display = 'block'; $('main-wrapper').style.display = 'none'; $('display-name').textContent = myName; refreshRooms(); }
+        function showLobby() { currentRoomId = null; myTeam = null; $('welcome-screen').style.display = 'none'; $('lobby').style.display = 'block'; $('main-wrapper').style.display = 'none'; $('waiting-room').style.display = 'none'; $('create-section').style.display = 'block'; $('display-name').textContent = myName; refreshRooms(); }
         
         document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedMode = parseInt(btn.dataset.mode); }; });
         
@@ -300,7 +300,10 @@
             $('leaderboard-list').innerHTML = data.map(g => {
                 const d = new Date(g.date);
                 const time = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-                return `<div class="lb-item"><span class="lb-winner ${g.winner}">${g.winner === 'plants' ? '🌻植物' : '🧟僵尸'}胜</span><span class="lb-info">第${g.waveNumber}波 ${g.mode}v${g.mode} ${time}</span></div>`;
+                const plantNames = g.plantPlayers || 'AI';
+                const zombieNames = g.zombiePlayers || 'AI';
+                const winnerNames = g.winner === 'plants' ? plantNames : zombieNames;
+                return `<div class="lb-item"><span class="lb-winner ${g.winner}">${g.winner === 'plants' ? '🌻' : '🧟'}${winnerNames}胜</span><span class="lb-info">第${g.waveNumber}波 ${g.mode}v${g.mode} ${time}</span></div>`;
             }).join('');
         });
         
@@ -392,7 +395,7 @@
             if (myTeam === 'plants') {
                 entityMenu.innerHTML = `<div class="entity-card plant-card" data-type="sunflower" data-cost="50"><div class="icon">🌻</div><div class="cost">50</div></div><div class="entity-card plant-card" data-type="peashooter" data-cost="100"><div class="icon">🌱</div><div class="cost">100</div></div><div class="entity-card plant-card" data-type="repeater" data-cost="200"><div class="icon">🌿</div><div class="cost">200</div></div><div class="entity-card plant-card" data-type="snowpea" data-cost="175"><div class="icon">❄️</div><div class="cost">175</div></div><div class="entity-card plant-card" data-type="torchwood" data-cost="175"><div class="icon">🔥</div><div class="cost">175</div></div><div class="entity-card plant-card" data-type="wallnut" data-cost="75"><div class="icon">🌰</div><div class="cost">75</div></div><div class="entity-card plant-card" data-type="tallnut" data-cost="125"><div class="icon">🥜</div><div class="cost">125</div></div><div class="entity-card plant-card" data-type="chomper" data-cost="150"><div class="icon">🐊</div><div class="cost">150</div></div><div class="entity-card plant-card" data-type="potatomine" data-cost="25"><div class="icon">🥔</div><div class="cost">25</div></div><div class="entity-card plant-card" data-type="cherrybomb" data-cost="175"><div class="icon">🍒</div><div class="cost">175</div></div><div class="entity-card shovel" data-type="shovel"><div class="icon">🧹</div><div class="cost">铲</div></div>`;
             } else {
-                entityMenu.innerHTML = `<div class="entity-card zombie-card wave-card" data-type="wave" data-cost="800"><div class="icon">🌊</div><div class="cost">800</div></div><div class="entity-card zombie-card" data-type="normal" data-cost="50"><div class="icon">🧟</div><div class="cost">50</div></div><div class="entity-card zombie-card" data-type="cone" data-cost="100"><div class="icon">🧟‍♂️</div><div class="cost">100</div></div><div class="entity-card zombie-card" data-type="bucket" data-cost="175"><div class="icon">🪣</div><div class="cost">175</div></div><div class="entity-card zombie-card" data-type="polevaulter" data-cost="125"><div class="icon">🏃</div><div class="cost">125</div></div><div class="entity-card zombie-card" data-type="flag" data-cost="75"><div class="icon">🎌</div><div class="cost">75</div></div><div class="entity-card zombie-card" data-type="newspaper" data-cost="80"><div class="icon">📰</div><div class="cost">80</div></div><div class="entity-card zombie-card" data-type="football" data-cost="275"><div class="icon">🏈</div><div class="cost">275</div></div><div class="entity-card zombie-card" data-type="brain" data-cost="75"><div class="icon">🧠</div><div class="cost">75</div></div>`;
+                entityMenu.innerHTML = `<div class="entity-card zombie-card wave-card" data-type="wave" data-cost="800"><div class="icon">🌊</div><div class="cost">800</div></div><div class="entity-card zombie-card" data-type="normal" data-cost="50"><div class="icon">🧟</div><div class="cost">50</div></div><div class="entity-card zombie-card" data-type="cone" data-cost="100"><div class="icon">🧟‍♂️</div><div class="cost">100</div></div><div class="entity-card zombie-card" data-type="bucket" data-cost="175"><div class="icon">🪣</div><div class="cost">175</div></div><div class="entity-card zombie-card" data-type="polevaulter" data-cost="125"><div class="icon">🏃</div><div class="cost">125</div></div><div class="entity-card zombie-card" data-type="flag" data-cost="75"><div class="icon">🎌</div><div class="cost">75</div></div><div class="entity-card zombie-card" data-type="newspaper" data-cost="80"><div class="icon">📰</div><div class="cost">80</div></div><div class="entity-card zombie-card" data-type="football" data-cost="275"><div class="icon">🏈</div><div class="cost">275</div></div><div class="entity-card zombie-card" data-type="brain" data-cost="50"><div class="icon">🧠</div><div class="cost">50</div></div>`;
             }
             
             document.querySelectorAll('.entity-card').forEach(card => { card.onclick = () => {
@@ -450,9 +453,9 @@
                     selectedEntity = null;
                     document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected'));
                     cellHighlight.style.display = 'none';
-                } else {
-                    socket.emit('spawnZombie', { type: selectedEntity, row });
                 }
+                // Zombies can ONLY be spawned via the row selector (red box on right side)
+                // Clicking on game board does nothing for zombie players
             };
             
             gameBoard.oncontextmenu = (e) => { e.preventDefault(); selectedEntity = null; isShovelMode = false; document.querySelectorAll('.entity-card').forEach(c => c.classList.remove('selected')); cellHighlight.style.display = 'none'; cellHighlight.classList.remove('remove'); $('row-selector').classList.remove('active'); };
@@ -563,7 +566,7 @@
         function updatePlantHp(col, row, hp) { const p = gameState.plants.get(`${col},${row}`); if (p) { p.hp = hp; const pct = Math.max(0, hp / p.maxHp * 100); p.hpBar.querySelector('.health-bar-fill').style.width = pct + '%'; p.hpBar.querySelector('.health-bar-fill').style.background = pct < 30 ? '#ff5252' : (pct < 60 ? 'orange' : '#4caf50'); } }
         function removePlant(col, row) { const key = `${col},${row}`; const p = gameState.plants.get(key); if (p) { p.el.remove(); p.hpBar.remove(); gameState.plants.delete(key); } }
         
-        function renderZombie(d) { if (gameState.zombies.has(d.id)) return; const el = document.createElement('div'); el.className = 'entity zombie'; el.textContent = zombieIcons[d.type] || '🧟'; el.style.left = '930px'; el.style.top = (d.row * 109 + 8) + 'px'; $('game-board').appendChild(el); const hpBar = createHealthBar(930 + 10, d.row * 109 + 2); $('game-board').appendChild(hpBar); gameState.zombies.set(d.id, { el, hpBar, hp: d.hp, maxHp: d.maxHp || d.hp, row: d.row }); }
+        function renderZombie(d) { if (gameState.zombies.has(d.id)) return; const el = document.createElement('div'); el.className = 'entity zombie'; el.textContent = zombieIcons[d.type] || '🧟'; el.style.left = '990px'; el.style.top = (d.row * 109 + 8) + 'px'; $('game-board').appendChild(el); const hpBar = createHealthBar(990 + 10, d.row * 109 + 2); $('game-board').appendChild(hpBar); gameState.zombies.set(d.id, { el, hpBar, hp: d.hp, maxHp: d.maxHp || d.hp, row: d.row }); }
         function updateZombieHp(id, hp) { const z = gameState.zombies.get(id); if (z) { z.hp = hp; const pct = Math.max(0, hp / z.maxHp * 100); z.hpBar.querySelector('.health-bar-fill').style.width = pct + '%'; z.hpBar.querySelector('.health-bar-fill').style.background = pct < 30 ? '#ff5252' : (pct < 60 ? 'orange' : '#4caf50'); } }
         function highlightZombie(id) { const z = gameState.zombies.get(id); if (z) { z.el.classList.add('hit'); setTimeout(() => z.el.classList.remove('hit'), 100); } }
         function removeZombie(id) { const z = gameState.zombies.get(id); if (z) { z.el.remove(); z.hpBar.remove(); gameState.zombies.delete(id); } }
