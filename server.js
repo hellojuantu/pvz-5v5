@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname)));
 
 const rooms = new Map();
 const sessions = new Map();
-const DATA_FILE = path.join(__dirname, 'game_data.json');
+const DATA_FILE = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'game_data.json') : path.join(__dirname, 'game_data.json');
 
 let persistedData = { sessions: {}, leaderboard: [], roomStates: {} };
 try {
