@@ -468,6 +468,18 @@ function setupGameEvents(socket, myTeam) {
     $('brain-count').textContent = d.brainCount;
     $('wave-num').textContent = d.waveNumber;
     GameUI.updateCardStates();
+
+    // 获取服务器上存在的僵尸ID集合
+    const serverZombieIds = new Set(d.zombies.map((z) => z.id));
+
+    // 清理客户端上已经不存在于服务器的僵尸
+    for (const [id] of gameState.zombies) {
+      if (!serverZombieIds.has(id)) {
+        GameUI.removeZombie(gameState, id);
+      }
+    }
+
+    // 更新存在的僵尸位置
     d.zombies.forEach((z) => {
       const zs = gameState.zombies.get(z.id);
       if (zs) {
