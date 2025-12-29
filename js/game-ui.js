@@ -163,8 +163,38 @@ function removeZombie(gameState, id) {
   }
 }
 
+// 全局动画循环控制
+let animationFrameId = null;
+
+// 初始化动画循环
+function initAnimationLoop(gameState) {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+
+  const loop = () => {
+    // 更新所有投射物位置
+    gameState.projectiles.forEach((pea, id) => {
+      pea.x += 10;
+      pea.el.style.left = pea.x + 'px';
+
+      // 客户端自动销毁超出边界的子弹（作为保险）
+      if (pea.x > 1050) {
+        removeProjectile(gameState, id);
+      }
+    });
+
+    animationFrameId = requestAnimationFrame(loop);
+  };
+
+  loop();
+}
+
 // 渲染投射物
 function renderProjectile(gameState, d) {
+  // 如果已存在则不重复创建
+  if (gameState.projectiles.has(d.id)) return;
+
   const pea = document.createElement('div');
   pea.className = `projectile pea-${d.type}`;
   pea.id = d.id;
@@ -172,25 +202,22 @@ function renderProjectile(gameState, d) {
   pea.style.left = d.x + 'px';
   pea.style.top = d.y + 'px';
   $('game-board').appendChild(pea);
-  gameState.projectiles.set(d.id, pea);
-  let x = d.x;
-  const int = setInterval(() => {
-    x += 10;
-    pea.style.left = x + 'px';
-    if (x > 1000 || !pea.parentElement) clearInterval(int);
-  }, 16);
-  setTimeout(() => {
-    clearInterval(int);
-    if (pea.parentElement) pea.remove();
-    gameState.projectiles.delete(d.id);
-  }, 1300);
+
+  // 存储投射物对象而非仅元素
+  gameState.projectiles.set(d.id, {
+    id: d.id,
+    el: pea,
+    x: d.x,
+    y: d.y,
+    type: d.type
+  });
 }
 
 // 移除投射物
 function removeProjectile(gameState, id) {
   const pea = gameState.projectiles.get(id);
   if (pea) {
-    pea.remove();
+    pea.el.remove();
     gameState.projectiles.delete(id);
   }
 }
@@ -285,5 +312,7 @@ window.GameUI = {
   createBrain,
   createFloatingText,
   createExplosion,
-  showWaveBanner
+  createExplosion,
+  showWaveBanner,
+  initAnimationLoop
 };

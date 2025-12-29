@@ -15,8 +15,18 @@ const gameState = {
 // 当前选中的实体和铲子模式
 let selectedEntity = null;
 let isShovelMode = false;
+// 拖拽相关
+let dragGhost = null;
+let isDragging = false; // 表示当前是否正在按住卡片拖拽
+let dragStartTime = 0;
+let dragStartX = 0;
+let dragStartY = 0;
 // 触摸容错：记录最后一次有效的高亮位置
 let lastValidCell = null;
+
+// 全局事件处理器引用（用于清除）
+let globalMoveHandler = null;
+let globalEndHandler = null;
 
 // 获取订单ID（用于恢复连接）
 function getOderId() {
@@ -68,6 +78,9 @@ function initGame(socket, data, myTeam, myName) {
   $('max-waves-display').textContent = data.maxWaves || 15;
   $('action-log').innerHTML = '';
   $('chat-messages').innerHTML = '';
+
+  // 启动投射物动画循环
+  GameUI.initAnimationLoop(gameState);
 
   // Setup row selector for zombies
   const rowSelector = $('row-selector');
@@ -173,33 +186,159 @@ function initGame(socket, data, myTeam, myName) {
     `;
   }
 
-  // Entity card selection
-  entityMenu.querySelectorAll('.entity-card').forEach((card) => {
-    card.onclick = () => {
-      const type = card.dataset.type;
+  // 拖拽幽灵元素管理
+  function updateDragGhost(x, y, type) {
+    if (!dragGhost) {
+      dragGhost = document.createElement('div');
+      dragGhost.className = 'drag-ghost';
+      document.body.appendChild(dragGhost);
+    }
+
+    // 获取图标
+    let icon = '🌱';
+    if (type === 'shovel') icon = '🔧';
+    else if (window.GameUI.plantIcons && window.GameUI.plantIcons[type]) icon = window.GameUI.plantIcons[type];
+    else if (window.GameUI.zombieIcons && window.GameUI.zombieIcons[type]) icon = window.GameUI.zombieIcons[type];
+
+    dragGhost.textContent = icon;
+    dragGhost.style.left = x + 'px';
+    dragGhost.style.top = y + 'px';
+    dragGhost.style.display = 'flex';
+  }
+
+  function removeDragGhost() {
+    if (dragGhost) {
+      dragGhost.remove();
+      dragGhost = null;
+    }
+  }
+
+  // 开始拖拽
+  function startDrag(e, type, card) {
+    // 检查资源和冷却
+    if (type !== 'shovel') {
       const cost = parseInt(card.dataset.cost);
       const resource = myTeam === 'plants' ? parseInt($('sun-count').textContent) : parseInt($('brain-count').textContent);
-      if (type === 'shovel') {
-        isShovelMode = !isShovelMode;
-        selectedEntity = isShovelMode ? 'shovel' : null;
-        document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
-        if (isShovelMode) card.classList.add('selected');
-        cellHighlight.classList.toggle('remove', isShovelMode);
-        $('row-selector').classList.remove('active');
-      } else if (resource >= cost && !card.classList.contains('on-cooldown')) {
-        isShovelMode = false;
-        cellHighlight.classList.remove('remove');
-        selectedEntity = type;
-        document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
-        card.classList.add('selected');
-        if (myTeam === 'zombies') {
-          $('row-selector').classList.add('active');
-        } else {
-          $('row-selector').classList.remove('active');
-        }
-      }
-    };
+      if (resource < cost || card.classList.contains('on-cooldown')) return;
+    }
+
+    if (e.cancelable && type !== 'shovel') e.preventDefault(); // 防止滚动 but allow scrolling for menu?
+    // Actually menu scrolling might be needed. Let's only prevent default if we confirm drag?
+    // For now, if touchstart on card, we mostly intend to drag.
+
+    isDragging = true;
+    selectedEntity = type;
+    isShovelMode = type === 'shovel';
+
+    // 高亮卡片
+    document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
+    card.classList.add('selected');
+    if (isShovelMode) cellHighlight.classList.add('remove');
+    else {
+      cellHighlight.classList.remove('remove');
+      if (myTeam === 'zombies') $('row-selector').classList.add('active');
+    }
+
+    // 显示幽灵
+    const coords = GameMobile.getEventCoordinates(e);
+    updateDragGhost(coords.clientX, coords.clientY, type);
+    dragStartX = coords.clientX;
+    dragStartY = coords.clientY;
+    dragStartTime = Date.now();
+  }
+
+  // 实体卡片事件绑定
+  entityMenu.querySelectorAll('.entity-card').forEach((card) => {
+    const type = card.dataset.type;
+
+    // 鼠标按下
+    card.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // 只响应左键
+      startDrag(e, type, card);
+    });
+
+    // 触摸开始
+    card.addEventListener(
+      'touchstart',
+      (e) => {
+        startDrag(e, type, card);
+      },
+      { passive: false }
+    );
   });
+
+  // 清除旧的全局事件监听
+  if (globalMoveHandler) {
+    document.removeEventListener('mousemove', globalMoveHandler);
+    document.removeEventListener('touchmove', globalMoveHandler);
+  }
+  if (globalEndHandler) {
+    document.removeEventListener('mouseup', globalEndHandler);
+    document.removeEventListener('touchend', globalEndHandler);
+  }
+
+  // 全局移动事件 (处理拖拽中 + 选中后的跟随)
+  globalMoveHandler = (e) => {
+    // 如果没有选中实体，或者不是拖拽状态且不是鼠标移动（触摸必须是拖拽状态才更新）
+    // Desktop: selectedEntity && (isDragging || !isDragging) -> Always fine
+    // Mobile: selectedEntity && (isDragging) -> Fine. If !isDragging (Tap mode), we rely on gameBoard touch events?
+    // Actually, document touchmove works fine if we are touching anywhere.
+
+    if (!selectedEntity) return;
+
+    // 如果是触摸设备且没有在拖拽状态（即 Tap 模式），可能不更新位置？
+    // 为了体验一致，只要有触摸移动或鼠标移动，都更新幽灵
+
+    if (isDragging) e.preventDefault(); // 只有主动拖拽时禁止滚动
+
+    const coords = GameMobile.getEventCoordinates(e);
+    // 只在有效坐标时更新
+    if (coords.clientX || coords.clientX === 0) {
+      updateDragGhost(coords.clientX, coords.clientY, selectedEntity);
+      // 更新网格高亮
+      showCellHighlight(e);
+    }
+  };
+
+  // 全局释放事件 (放置)
+  globalEndHandler = (e) => {
+    if (!isDragging) return; // 如果不是从卡片开始的拖拽，不处理（交给 gameBoard 点击事件）
+
+    const coords = GameMobile.getEventCoordinates(e);
+    const dist = Math.hypot(coords.clientX - dragStartX, coords.clientY - dragStartY);
+    const time = Date.now() - dragStartTime;
+
+    // 判定为点击 (距离短且时间短)
+    // 增加一点宽容度，防止手抖
+    if (dist < 15 && time < 400) {
+      // 这是点击操作：保持选中状态，不尝试放置
+      isDragging = false;
+      // Desktop: Ghost follows cursor. Mobile: Ghost stays?
+      // Let's keep ghost and selection.
+      return;
+    }
+
+    // 判定为拖拽：尝试放置
+    handleCellAction(e);
+
+    // 拖拽释放后，总是结束选中状态
+    isDragging = false;
+    selectedEntity = null;
+    isShovelMode = false;
+    removeDragGhost();
+    document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
+    cellHighlight.style.display = 'none';
+    cellHighlight.classList.remove('remove');
+    $('row-selector').classList.remove('active');
+    lastValidCell = null;
+  };
+
+  document.addEventListener('mousemove', globalMoveHandler);
+  document.addEventListener('touchmove', globalMoveHandler, { passive: false });
+  document.addEventListener('mouseup', globalEndHandler);
+  document.addEventListener('touchend', globalEndHandler);
+
+  setupGameEvents(socket, myTeam);
 
   // ========== 统一触摸/鼠标事件处理（支持缩放） ==========
 
@@ -260,12 +399,23 @@ function initGame(socket, data, myTeam, myName) {
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';
       cellHighlight.classList.remove('remove');
+      removeDragGhost();
     } else if (myTeam === 'plants') {
       socket.emit('placePlant', { type: selectedEntity, col, row });
       selectedEntity = null;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';
+      removeDragGhost();
       // 放置成功后重置 lastValidCell
+      lastValidCell = null;
+    } else if (myTeam === 'zombies') {
+      // 僵尸拖拽放置：只要拖到对应行即可
+      socket.emit('spawnZombie', { type: selectedEntity, row });
+      selectedEntity = null;
+      document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
+      cellHighlight.style.display = 'none';
+      $('row-selector').classList.remove('active');
+      removeDragGhost();
       lastValidCell = null;
     }
   }
@@ -279,6 +429,7 @@ function initGame(socket, data, myTeam, myName) {
     cellHighlight.style.display = 'none';
     cellHighlight.classList.remove('remove');
     $('row-selector').classList.remove('active');
+    removeDragGhost();
   }
 
   // 鼠标事件
@@ -358,7 +509,7 @@ function setupGameEvents(socket, myTeam) {
     log(`🔧 植物被铲除 (${d.col},${d.row})`);
   });
 
-  socket.off('plantHit').on('plantHit', (d) => {
+  socket.off('plantDamage').on('plantDamage', (d) => {
     GameUI.updatePlantHp(gameState, d.col, d.row, d.hp);
     const p = gameState.plants.get(`${d.col},${d.row}`);
     if (p) {
@@ -367,7 +518,7 @@ function setupGameEvents(socket, myTeam) {
     }
   });
 
-  socket.off('plantDied').on('plantDied', (d) => {
+  socket.off('plantDie').on('plantDie', (d) => {
     GameUI.removePlant(gameState, d.col, d.row);
     log(`💀 植物死亡 (${d.col},${d.row})`);
   });
@@ -382,15 +533,6 @@ function setupGameEvents(socket, myTeam) {
     log(`🧟 ${d.type} 出现在第${d.row + 1}行`);
   });
 
-  socket.off('zombieHit').on('zombieHit', (d) => {
-    GameUI.updateZombieHp(gameState, d.id, d.hp);
-    GameUI.highlightZombie(gameState, d.id);
-    if (d.slowed) {
-      const z = gameState.zombies.get(d.id);
-      if (z) z.el.classList.add('slowed');
-    }
-  });
-
   socket.off('zombieDied').on('zombieDied', (d) => {
     GameUI.removeZombie(gameState, d.id);
     log(`💀 僵尸死亡`);
@@ -402,7 +544,14 @@ function setupGameEvents(socket, myTeam) {
 
   socket.off('peaHit').on('peaHit', (d) => {
     GameUI.removeProjectile(gameState, d.peaId);
-    if (d.zombieId) GameUI.highlightZombie(gameState, d.zombieId);
+    if (d.zombieId) {
+      GameUI.updateZombieHp(gameState, d.zombieId, d.zombieHp);
+      GameUI.highlightZombie(gameState, d.zombieId);
+      if (d.slowed) {
+        const z = gameState.zombies.get(d.zombieId);
+        if (z) z.el.classList.add('slowed');
+      }
+    }
   });
 
   socket.off('peaMiss').on('peaMiss', (d) => {
@@ -412,7 +561,7 @@ function setupGameEvents(socket, myTeam) {
   socket.off('peaFire').on('peaFire', (d) => {
     const pea = gameState.projectiles.get(d.peaId);
     if (pea) {
-      pea.className = 'projectile pea-fire';
+      pea.el.className = 'projectile pea-fire';
     }
   });
 
@@ -496,6 +645,24 @@ function setupGameEvents(socket, myTeam) {
 
     // 获取服务器上存在的僵尸ID集合
     const serverZombieIds = new Set(d.zombies.map((z) => z.id));
+
+    // 清理客户端上已经不存在于服务器的植物
+    const serverPlantKeys = new Set(d.plants.map((p) => `${p.col},${p.row}`));
+    for (const [key] of gameState.plants) {
+      if (!serverPlantKeys.has(key)) {
+        const [col, row] = key.split(',').map(Number);
+        GameUI.removePlant(gameState, col, row);
+      }
+    }
+
+    // 更新植物血量
+    d.plants.forEach((p) => {
+      GameUI.updatePlantHp(gameState, p.col, p.row, p.hp);
+      // 如果植物在客户端不存在，可能需要重新渲染？
+      if (!gameState.plants.has(`${p.col},${p.row}`)) {
+        GameUI.renderPlant(gameState, { type: p.type, col: p.col, row: p.row, hp: p.hp, maxHp: p.maxHp, armed: p.armed });
+      }
+    });
 
     // 清理客户端上已经不存在于服务器的僵尸
     for (const [id] of gameState.zombies) {

@@ -28,9 +28,12 @@
 
   // 连接成功
   socket.on('connect', () => {
-    $('loading-overlay').style.display = 'none';
+    // Note: Don't hide overlay yet. Wait for state restore.
 
     socket.emit('restore', { oderId: GameCore.getOderId(), name: GameLobby.getMyName() }, (res) => {
+      // Hide overlay only after we know what to show
+      $('loading-overlay').style.display = 'none';
+
       if (res.restored) {
         GameLobby.setMyTeam(res.team);
         if (res.state === 'playing') {
