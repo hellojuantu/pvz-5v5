@@ -1,5 +1,7 @@
 # PvZ 5v5 Multiplayer 🌻🧟
 
+立即体验: https://pvz.xbarry.com/
+
 植物大战僵尸多人对战版 - 支持 5v5 实时对战!
 
 ## 游戏截图
@@ -64,7 +66,7 @@ npm install
 npm start
 ```
 
-访问 http://localhost:3000/multiplayer.html
+访问 http://localhost:3000
 
 ## 技术栈
 
