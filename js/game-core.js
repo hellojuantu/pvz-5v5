@@ -22,6 +22,7 @@ let isDragging = false; // 表示当前是否正在按住卡片拖拽
 let dragStartTime = 0;
 let dragStartX = 0;
 let dragStartY = 0;
+let maxDragDistance = 0;
 // 触摸容错：记录最后一次有效的高亮位置
 let lastValidCell = null;
 
@@ -223,6 +224,7 @@ function initGame(socket, data, myTeam, myName) {
     dragStartX = coords.clientX;
     dragStartY = coords.clientY;
     dragStartTime = Date.now();
+    maxDragDistance = 0;
 
     // 隐藏 row-selector (不再使用)
     const rs = $('row-selector');
@@ -278,6 +280,10 @@ function initGame(socket, data, myTeam, myName) {
     if (coords.clientX === undefined) return;
 
     e.preventDefault(); // 拖拽时禁止滚动
+    // 更新最大拖拽距离
+    const currentDist = Math.hypot(coords.clientX - dragStartX, coords.clientY - dragStartY);
+    maxDragDistance = Math.max(maxDragDistance, currentDist);
+    
     updateDragGhost(coords.clientX, coords.clientY, selectedEntity);
     showCellHighlight(e);
   };
@@ -291,7 +297,8 @@ function initGame(socket, data, myTeam, myName) {
     const time = Date.now() - dragStartTime;
 
     // 判定为点击 (距离短且时间短) - 进入"选中模式"
-    if (dist < 20 && time < 400) {
+    // 使用 maxDragDistance 而不是 dist，因为如果拖拽出去又回来，dist很小，但应该算作拖拽取消
+    if (maxDragDistance < 20 && time < 400) {
       // 这是点击操作
       isDragging = false;
       removeDragGhost();
