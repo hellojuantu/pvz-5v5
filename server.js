@@ -1044,7 +1044,13 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', ({ roomId, team }, callback) => {
     const room = rooms.get(roomId);
-    if (!room) return callback({ success: false, error: '房间不存在' });
+    if (!room) return callback({ success: false, error: '房间不存在或已解散' });
+    
+    // Check if player is already in the room
+    if (room.findPlayerByOderId(oderId)) {
+      return callback({ success: false, error: '你已在房间中，请勿重复加入' });
+    }
+
     if (room.state !== 'waiting' && room.state !== 'paused') return callback({ success: false, error: '无法加入' });
     const player = room.addPlayer(socket.id, socket, team, playerName, oderId);
     if (!player) return callback({ success: false, error: '队伍已满' });
