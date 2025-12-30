@@ -239,7 +239,7 @@ function initGame(socket, data, myTeam, myName) {
     }
   }
 
-  // 开始拖拽
+  // 开始拖拽/选中
   function startDrag(e, type, card) {
     // 检查资源和冷却
     if (type !== 'shovel') {
@@ -248,9 +248,7 @@ function initGame(socket, data, myTeam, myName) {
       if (resource < cost || card.classList.contains('on-cooldown')) return;
     }
 
-    if (e.cancelable && type !== 'shovel') e.preventDefault(); // 防止滚动 but allow scrolling for menu?
-    // Actually menu scrolling might be needed. Let's only prevent default if we confirm drag?
-    // For now, if touchstart on card, we mostly intend to drag.
+    if (e.cancelable && type !== 'shovel') e.preventDefault();
 
     isDragging = true;
     selectedEntity = type;
@@ -265,9 +263,8 @@ function initGame(socket, data, myTeam, myName) {
       if (myTeam === 'zombies') $('row-selector').classList.add('active');
     }
 
-    // 显示幽灵
+    // 记录起始位置，不立即显示 ghost（等待移动距离超过阈值才显示）
     const coords = GameMobile.getEventCoordinates(e);
-    updateDragGhost(coords.clientX, coords.clientY, type);
     dragStartX = coords.clientX;
     dragStartY = coords.clientY;
     dragStartTime = Date.now();
@@ -313,25 +310,20 @@ function initGame(socket, data, myTeam, myName) {
     gameBoard.removeEventListener('touchend', boardTouchEndHandler);
   }
 
-  // 全局移动事件 (处理拖拽中 + 选中后的跟随)
+  // 全局移动事件 (处理拖拽中)
   globalMoveHandler = (e) => {
-    // 如果没有选中实体，或者不是拖拽状态且不是鼠标移动（触摸必须是拖拽状态才更新）
-    // Desktop: selectedEntity && (isDragging || !isDragging) -> Always fine
-    // Mobile: selectedEntity && (isDragging) -> Fine. If !isDragging (Tap mode), we rely on gameBoard touch events?
-    // Actually, document touchmove works fine if we are touching anywhere.
-
     if (!selectedEntity) return;
-
-    // 如果是触摸设备且没有在拖拽状态（即 Tap 模式），可能不更新位置？
-    // 为了体验一致，只要有触摸移动或鼠标移动，都更新幽灵
-
-    if (isDragging) e.preventDefault(); // 只有主动拖拽时禁止滚动
+    if (!isDragging) return; // 只在拖拽过程中更新
 
     const coords = GameMobile.getEventCoordinates(e);
-    // 只在有效坐标时更新
-    if (coords.clientX || coords.clientX === 0) {
+    if (coords.clientX === undefined) return;
+
+    const dist = Math.hypot(coords.clientX - dragStartX, coords.clientY - dragStartY);
+
+    // 只有移动距离超过阈值才显示 ghost（确认是拖拽而不是点击）
+    if (dist >= 15) {
+      e.preventDefault(); // 只有真正拖拽时禁止滚动
       updateDragGhost(coords.clientX, coords.clientY, selectedEntity);
-      // 更新网格高亮
       showCellHighlight(e);
     }
   };
@@ -345,11 +337,10 @@ function initGame(socket, data, myTeam, myName) {
     const time = Date.now() - dragStartTime;
 
     // 判定为点击 (距离短且时间短) - 进入"选中模式"
-    // 增加一点宽容度，防止手抖
     if (dist < 15 && time < 400) {
       // 这是点击操作：保持选中状态，不尝试放置
       isDragging = false;
-      // 移除幽灵，让用户知道需要点击棋盘放置
+      // 点击模式不显示 ghost，确保清除
       removeDragGhost();
       return;
     }
