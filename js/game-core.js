@@ -406,6 +406,9 @@ function initGame(socket, data, myTeam, myName) {
 
     if (isShovelMode) {
       socket.emit('removePlant', { col, row });
+   
+      GameUI.removePlant(gameState, col, row);
+
       selectedEntity = null;
       isShovelMode = false;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
@@ -425,7 +428,7 @@ function initGame(socket, data, myTeam, myName) {
       socket.emit('placePlant', { type, col, row });
 
       // Optimistic Rendering (Instant Feedback)
-      const { GameUI } = window;
+      // Optimistic Rendering (Instant Feedback)
       GameUI.renderPlant(gameState, { type, col, row, hp: 300, maxHp: 300 }); // HP dummy value, updated by server later
       const p = gameState.plants.get(`${col},${row}`);
       if (p) {
@@ -446,7 +449,7 @@ function initGame(socket, data, myTeam, myName) {
       socket.emit('spawnZombie', { type, row });
 
       // Instant Feedback (Cooldown)
-      const { GameUI } = window;
+      // Instant Feedback (Cooldown)
       const card = document.querySelector(`.entity-card[data-type="${type}"]`);
       if (card) GameUI.startCardCooldown(card, 3000); // Standard cooldown
 
