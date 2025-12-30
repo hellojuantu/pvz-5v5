@@ -90,59 +90,10 @@ function initGame(socket, data, myTeam, myName) {
   // 启动投射物动画循环
   GameUI.initAnimationLoop(gameState);
 
-  // Setup row selector for zombies
-  const rowSelector = $('row-selector');
-  rowSelector.innerHTML = '';
-
-  // Create row highlight element
+  // Create row highlight element (僵尸放置时整行高亮)
   const rowHighlight = document.createElement('div');
   rowHighlight.className = 'row-highlight';
   gameBoard.appendChild(rowHighlight);
-
-  if (myTeam === 'zombies') {
-    for (let r = 0; r < 5; r++) {
-      const btn = document.createElement('div');
-      btn.className = 'row-btn';
-      btn.textContent = '←';
-      // 鼠标事件
-      btn.onmouseenter = () => {
-        rowHighlight.style.display = 'block';
-        rowHighlight.style.top = r * 109 + 'px';
-      };
-      btn.onmouseleave = () => {
-        rowHighlight.style.display = 'none';
-      };
-      // 触摸事件
-      btn.ontouchstart = (e) => {
-        e.preventDefault();
-        rowHighlight.style.display = 'block';
-        rowHighlight.style.top = r * 109 + 'px';
-        btn.classList.add('active');
-      };
-      btn.ontouchend = (e) => {
-        e.preventDefault();
-        btn.classList.remove('active');
-        if (selectedEntity && selectedEntity !== 'shovel') {
-          socket.emit('spawnZombie', { type: selectedEntity, row: r });
-          selectedEntity = null;
-          document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
-          rowSelector.classList.remove('active');
-          rowHighlight.style.display = 'none';
-        }
-      };
-      // 点击事件（桌面端）
-      btn.onclick = () => {
-        if (selectedEntity && selectedEntity !== 'shovel') {
-          socket.emit('spawnZombie', { type: selectedEntity, row: r });
-          selectedEntity = null;
-          document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
-          rowSelector.classList.remove('active');
-          rowHighlight.style.display = 'none';
-        }
-      };
-      rowSelector.appendChild(btn);
-    }
-  }
 
   // Render lawnmowers
   const lawnmowers = data.gameState && data.gameState.lawnmowers ? data.gameState.lawnmowers : data.lawnmowers || [true, true, true, true, true];
@@ -260,14 +211,18 @@ function initGame(socket, data, myTeam, myName) {
     if (isShovelMode) cellHighlight.classList.add('remove');
     else {
       cellHighlight.classList.remove('remove');
-      if (myTeam === 'zombies') $('row-selector').classList.add('active');
     }
 
-    // 记录起始位置，不立即显示 ghost（等待移动距离超过阈值才显示）
+    // 显示 ghost 并记录起始位置
     const coords = GameMobile.getEventCoordinates(e);
+    updateDragGhost(coords.clientX, coords.clientY, type);
     dragStartX = coords.clientX;
     dragStartY = coords.clientY;
     dragStartTime = Date.now();
+
+    // 隐藏 row-selector (不再使用)
+    const rs = $('row-selector');
+    if (rs) rs.style.display = 'none';
   }
 
   // 实体卡片事件绑定
@@ -318,14 +273,9 @@ function initGame(socket, data, myTeam, myName) {
     const coords = GameMobile.getEventCoordinates(e);
     if (coords.clientX === undefined) return;
 
-    const dist = Math.hypot(coords.clientX - dragStartX, coords.clientY - dragStartY);
-
-    // 只有移动距离超过阈值才显示 ghost（确认是拖拽而不是点击）
-    if (dist >= 15) {
-      e.preventDefault(); // 只有真正拖拽时禁止滚动
-      updateDragGhost(coords.clientX, coords.clientY, selectedEntity);
-      showCellHighlight(e);
-    }
+    e.preventDefault(); // 拖拽时禁止滚动
+    updateDragGhost(coords.clientX, coords.clientY, selectedEntity);
+    showCellHighlight(e);
   };
 
   // 全局释放事件 (放置)
@@ -337,7 +287,7 @@ function initGame(socket, data, myTeam, myName) {
     const time = Date.now() - dragStartTime;
 
     // 判定为点击 (距离短且时间短) - 进入"选中模式"
-    if (dist < 15 && time < 400) {
+    if (dist < 20 && time < 400) {
       // 这是点击操作：保持选中状态，不尝试放置
       isDragging = false;
       // 点击模式不显示 ghost，确保清除
@@ -360,7 +310,7 @@ function initGame(socket, data, myTeam, myName) {
     document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
     cellHighlight.style.display = 'none';
     cellHighlight.classList.remove('remove');
-    $('row-selector').classList.remove('active');
+    rowHighlight.style.display = 'none';
     lastValidCell = null;
   };
 
@@ -391,11 +341,27 @@ function initGame(socket, data, myTeam, myName) {
 
   // 显示格子高亮
   function showCellHighlight(e) {
-    if (!selectedEntity || (myTeam === 'zombies' && !isShovelMode)) {
+    const { col, row, isValid } = getGridPosition(e);
+
+    // 僵尸队伍：显示整行高亮（红色）
+    if (selectedEntity && myTeam === 'zombies' && !isShovelMode) {
+      if (isValid) {
+        rowHighlight.style.display = 'block';
+        rowHighlight.style.top = row * 109 + 'px';
+        lastValidCell = { col, row };
+      } else {
+        rowHighlight.style.display = 'none';
+      }
       cellHighlight.style.display = 'none';
       return;
     }
-    const { col, row, isValid } = getGridPosition(e);
+
+    // 植物队伍或铲子模式：显示单格高亮
+    if (!selectedEntity) {
+      cellHighlight.style.display = 'none';
+      rowHighlight.style.display = 'none';
+      return;
+    }
     if (isValid) {
       cellHighlight.style.display = 'block';
       cellHighlight.style.left = col * 110 + 'px';
@@ -472,7 +438,7 @@ function initGame(socket, data, myTeam, myName) {
       selectedEntity = null;
       document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
       cellHighlight.style.display = 'none';
-      $('row-selector').classList.remove('active');
+      rowHighlight.style.display = 'none';
       removeDragGhost();
       lastValidCell = null;
     }
@@ -487,7 +453,7 @@ function initGame(socket, data, myTeam, myName) {
     document.querySelectorAll('.entity-card').forEach((c) => c.classList.remove('selected'));
     cellHighlight.style.display = 'none';
     cellHighlight.classList.remove('remove');
-    $('row-selector').classList.remove('active');
+    rowHighlight.style.display = 'none';
     removeDragGhost();
   }
 
