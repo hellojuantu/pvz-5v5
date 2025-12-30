@@ -28,6 +28,10 @@ let lastValidCell = null;
 // 全局事件处理器引用（用于清除）
 let globalMoveHandler = null;
 let globalEndHandler = null;
+// 触摸事件处理器引用（用于清除）
+let boardTouchStartHandler = null;
+let boardTouchMoveHandler = null;
+let boardTouchEndHandler = null;
 
 // 获取订单ID（用于恢复连接）
 function getOderId() {
@@ -79,6 +83,9 @@ function initGame(socket, data, myTeam, myName) {
   $('max-waves-display').textContent = data.maxWaves || 15;
   $('action-log').innerHTML = '';
   $('chat-messages').innerHTML = '';
+
+  // 禁止 top-bar 右键菜单
+  $('top-bar').oncontextmenu = (e) => e.preventDefault();
 
   // 启动投射物动画循环
   GameUI.initAnimationLoop(gameState);
@@ -295,6 +302,16 @@ function initGame(socket, data, myTeam, myName) {
     document.removeEventListener('mouseup', globalEndHandler);
     document.removeEventListener('touchend', globalEndHandler);
   }
+  // 清除旧的 gameBoard 触摸事件监听
+  if (boardTouchStartHandler) {
+    gameBoard.removeEventListener('touchstart', boardTouchStartHandler);
+  }
+  if (boardTouchMoveHandler) {
+    gameBoard.removeEventListener('touchmove', boardTouchMoveHandler);
+  }
+  if (boardTouchEndHandler) {
+    gameBoard.removeEventListener('touchend', boardTouchEndHandler);
+  }
 
   // 全局移动事件 (处理拖拽中 + 选中后的跟随)
   globalMoveHandler = (e) => {
@@ -489,34 +506,24 @@ function initGame(socket, data, myTeam, myName) {
   gameBoard.oncontextmenu = cancelSelection;
 
   // 触摸事件
-  gameBoard.addEventListener(
-    'touchstart',
-    (e) => {
-      if (selectedEntity) e.preventDefault();
-      showCellHighlight(e);
-    },
-    { passive: false }
-  );
+  boardTouchStartHandler = (e) => {
+    if (selectedEntity) e.preventDefault();
+    showCellHighlight(e);
+  };
+  boardTouchMoveHandler = (e) => {
+    if (selectedEntity) e.preventDefault();
+    showCellHighlight(e);
+  };
+  boardTouchEndHandler = (e) => {
+    if (selectedEntity) {
+      e.preventDefault();
+      handleCellAction(e);
+    }
+  };
 
-  gameBoard.addEventListener(
-    'touchmove',
-    (e) => {
-      if (selectedEntity) e.preventDefault();
-      showCellHighlight(e);
-    },
-    { passive: false }
-  );
-
-  gameBoard.addEventListener(
-    'touchend',
-    (e) => {
-      if (selectedEntity) {
-        e.preventDefault();
-        handleCellAction(e);
-      }
-    },
-    { passive: false }
-  );
+  gameBoard.addEventListener('touchstart', boardTouchStartHandler, { passive: false });
+  gameBoard.addEventListener('touchmove', boardTouchMoveHandler, { passive: false });
+  gameBoard.addEventListener('touchend', boardTouchEndHandler, { passive: false });
 }
 
 // 恢复游戏状态
@@ -818,6 +825,8 @@ function setupGameEvents(socket, myTeam) {
   });
 
   socket.off('gameEnd').on('gameEnd', (d) => {
+    // 停止动画循环
+    GameUI.stopAnimationLoop();
     const emoji = d.winner === 'plants' ? '🌻' : '🧟';
     const teamName = d.winner === 'plants' ? '植物' : '僵尸';
     const names = d.winnerNames || teamName;

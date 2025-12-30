@@ -28,8 +28,6 @@ const zombieIcons = {
   brain: '🧠'
 };
 
-// 使用全局的 $ 函数 (定义在 utils.js)
-
 // 创建血条
 function createHealthBar(x, y) {
   const bar = document.createElement('div');
@@ -175,11 +173,17 @@ function removeZombie(gameState, id) {
 // 全局动画循环控制
 let animationFrameId = null;
 
-// 初始化动画循环
-function initAnimationLoop(gameState) {
+// 停止动画循环
+function stopAnimationLoop() {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
+}
+
+// 初始化动画循环
+function initAnimationLoop(gameState) {
+  stopAnimationLoop(); // 先停止旧的循环
 
   const loop = () => {
     // 更新所有投射物位置
@@ -322,5 +326,6 @@ window.GameUI = {
   createFloatingText,
   createExplosion,
   showWaveBanner,
-  initAnimationLoop
+  initAnimationLoop,
+  stopAnimationLoop
 };

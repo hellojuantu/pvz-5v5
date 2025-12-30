@@ -155,6 +155,7 @@ class GameRoom {
     this.sunLoop = null;
     this.brainLoop = null;
     this.waveLoop = null;
+    this.botTimers = []; // Track bot AI timers for cleanup
   }
 
   restoreFrom(saved) {
@@ -277,6 +278,11 @@ class GameRoom {
     this.sunLoop = null;
     this.brainLoop = null;
     this.waveLoop = null;
+    // Clear all bot AI timers
+    if (this.botTimers) {
+      this.botTimers.forEach((t) => clearInterval(t));
+      this.botTimers = [];
+    }
   }
 
   pauseGame(reason) {
@@ -767,12 +773,13 @@ class GameRoom {
       .filter((p) => p.isBot)
       .forEach((bot) => {
         // Bot collects sun more often
-        setInterval(() => {
+        const sunTimer = setInterval(() => {
           if (this.state !== 'playing') return;
           this.collectSun(25);
         }, 3000);
+        this.botTimers.push(sunTimer);
 
-        setInterval(
+        const plantTimer = setInterval(
           () => {
             if (this.state !== 'playing') return;
 
@@ -862,23 +869,25 @@ class GameRoom {
           },
           1500 + Math.random() * 1500
         );
+        this.botTimers.push(plantTimer);
       });
 
     this.zombiePlayers
       .filter((p) => p.isBot)
       .forEach((bot) => {
         // Bot collects brains very frequently
-        setInterval(() => {
+        const brainTimer = setInterval(() => {
           if (this.state !== 'playing') return;
           this.collectBrain(50); // More brains per collection
         }, 2000); // Faster collection
+        this.botTimers.push(brainTimer);
 
-        setInterval(
+        const zombieTimer = setInterval(
           () => {
             if (this.state !== 'playing') return;
 
-            // ALWAYS buy wave when have enough brains - TOP priority
-            if (this.brainCount >= 200) {
+            // ALWAYS buy wave when have enough brains - TOP priority (needs 800)
+            if (this.brainCount >= 800) {
               if (this.waveNumber < this.maxWaves) {
                 this.buyWave(bot.name);
               }
@@ -923,6 +932,7 @@ class GameRoom {
           },
           1500 + Math.random() * 1500
         );
+        this.botTimers.push(zombieTimer);
       });
   }
 }
