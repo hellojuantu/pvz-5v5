@@ -78,6 +78,15 @@
     GameLobby.showLobby();
   };
 
+  // Return to Lobby after Game
+  $('restart-game-btn').onclick = () => {
+    socket.emit('leaveRoom');
+    $('game-end-modal').classList.remove('active');
+    $('game-end-modal').style.display = 'none'; // Ensure hidden
+    $('main-wrapper').style.display = 'none';
+    GameLobby.showLobby();
+  };
+
   $('name-input').onkeydown = (e) => {
     if (e.key === 'Enter') $('enter-btn').click();
   };

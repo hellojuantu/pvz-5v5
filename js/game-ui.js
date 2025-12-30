@@ -41,6 +41,7 @@ function createHealthBar(x, y) {
 }
 
 // 卡片冷却效果
+// 卡片冷却效果
 function startCardCooldown(card, durationMs) {
   let overlay = card.querySelector('.cooldown-overlay');
   if (!overlay) {
@@ -50,18 +51,26 @@ function startCardCooldown(card, durationMs) {
     card.style.position = 'relative';
     card.appendChild(overlay);
   }
+
+  // Cancel existing animation if any
+  if (card._cooldownAnimId) {
+    cancelAnimationFrame(card._cooldownAnimId);
+  }
+
   overlay.style.display = 'block';
   card.classList.add('on-cooldown');
+
   const startTime = Date.now();
   const tick = () => {
     const elapsed = Date.now() - startTime;
     const pct = Math.min(100, (elapsed / durationMs) * 100);
     overlay.style.height = 100 - pct + '%';
     if (elapsed < durationMs) {
-      requestAnimationFrame(tick);
+      card._cooldownAnimId = requestAnimationFrame(tick);
     } else {
       overlay.style.display = 'none';
       card.classList.remove('on-cooldown');
+      card._cooldownAnimId = null;
     }
   };
   tick();

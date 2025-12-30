@@ -7,9 +7,10 @@
 
 // 游戏状态
 const gameState = {
-  plants: new Map(),
-  zombies: new Map(),
-  projectiles: new Map()
+  plants: new Map(), // key: "col,row", val: { type, el, hp, ... }
+  zombies: new Map(), // key: id, val: { el, hpBar, ... }
+  projectiles: new Map(), // key: id, val: { el }
+  activeLawnmowers: new Map() // key: row, val: element
 };
 
 // 当前选中的实体和铲子模式
@@ -151,10 +152,28 @@ function initGame(socket, data, myTeam, myName) {
   }
 
   // Exit game button
-  $('exit-game-btn').onclick = () => {
-    if (confirm('确定投降？对方将获胜')) {
+  // Exit game button (Double Tap)
+  const exitBtn = $('exit-game-btn');
+  let exitConfirmTimer = null;
+
+  exitBtn.onclick = () => {
+    if (exitBtn.classList.contains('confirming')) {
+      // Second tap: Confirm exit
       socket.emit('leaveGame', true);
       window.GameLobby.showLobby();
+      // Reset button
+      clearTimeout(exitConfirmTimer);
+      exitBtn.classList.remove('confirming');
+      exitBtn.textContent = '🏳️ 投降';
+    } else {
+      // First tap: Request confirm
+      exitBtn.classList.add('confirming');
+      exitBtn.textContent = '❌ 确定?';
+
+      exitConfirmTimer = setTimeout(() => {
+        exitBtn.classList.remove('confirming');
+        exitBtn.textContent = '🏳️ 投降';
+      }, 3000);
     }
   };
 
@@ -166,9 +185,9 @@ function initGame(socket, data, myTeam, myName) {
       <div class="entity-card plant-card" data-type="peashooter" data-cost="100"><div class="icon">🌱</div><div class="name">豌豆</div><div class="cost">100</div></div>
       <div class="entity-card plant-card" data-type="repeater" data-cost="200"><div class="icon">🌿</div><div class="name">双发</div><div class="cost">200</div></div>
       <div class="entity-card plant-card" data-type="snowpea" data-cost="175"><div class="icon">❄️</div><div class="name">寒冰</div><div class="cost">175</div></div>
-      <div class="entity-card plant-card" data-type="torchwood" data-cost="75"><div class="icon">🔥</div><div class="name">火炬</div><div class="cost">75</div></div>
-      <div class="entity-card plant-card" data-type="wallnut" data-cost="125"><div class="icon">🌰</div><div class="name">坚果</div><div class="cost">125</div></div>
-      <div class="entity-card plant-card" data-type="tallnut" data-cost="150"><div class="icon">🥜</div><div class="name">高坚果</div><div class="cost">150</div></div>
+      <div class="entity-card plant-card" data-type="torchwood" data-cost="175"><div class="icon">🔥</div><div class="name">火炬</div><div class="cost">175</div></div>
+      <div class="entity-card plant-card" data-type="wallnut" data-cost="75"><div class="icon">🌰</div><div class="name">坚果</div><div class="cost">75</div></div>
+      <div class="entity-card plant-card" data-type="tallnut" data-cost="125"><div class="icon">🥜</div><div class="name">高坚果</div><div class="cost">125</div></div>
       <div class="entity-card plant-card" data-type="chomper" data-cost="150"><div class="icon">🐊</div><div class="name">咬嘴</div><div class="cost">150</div></div>
       <div class="entity-card plant-card" data-type="potatomine" data-cost="25"><div class="icon">🥔</div><div class="name">土豆</div><div class="cost">25</div></div>
       <div class="entity-card plant-card" data-type="cherrybomb" data-cost="175"><div class="icon">🍒</div><div class="name">樱桃</div><div class="cost">175</div></div>
@@ -178,11 +197,11 @@ function initGame(socket, data, myTeam, myName) {
     entityMenu.innerHTML = `
       <div class="entity-card zombie-card" data-type="normal" data-cost="50"><div class="icon">🧟</div><div class="name">普通</div><div class="cost">50</div></div>
       <div class="entity-card zombie-card" data-type="cone" data-cost="100"><div class="icon">🧟‍♂️</div><div class="name">路障</div><div class="cost">100</div></div>
-      <div class="entity-card zombie-card" data-type="bucket" data-cost="200"><div class="icon">🪣</div><div class="name">铁桶</div><div class="cost">200</div></div>
-      <div class="entity-card zombie-card" data-type="polevaulter" data-cost="175"><div class="icon">🏃</div><div class="name">撑杆</div><div class="cost">175</div></div>
+      <div class="entity-card zombie-card" data-type="bucket" data-cost="175"><div class="icon">🪣</div><div class="name">铁桶</div><div class="cost">175</div></div>
+      <div class="entity-card zombie-card" data-type="polevaulter" data-cost="125"><div class="icon">🏃</div><div class="name">撑杆</div><div class="cost">125</div></div>
       <div class="entity-card zombie-card" data-type="flag" data-cost="75"><div class="icon">🎌</div><div class="name">旗子</div><div class="cost">75</div></div>
-      <div class="entity-card zombie-card" data-type="newspaper" data-cost="125"><div class="icon">📰</div><div class="name">读报</div><div class="cost">125</div></div>
-      <div class="entity-card zombie-card" data-type="football" data-cost="175"><div class="icon">🏈</div><div class="name">橄榄球</div><div class="cost">175</div></div>
+      <div class="entity-card zombie-card" data-type="newspaper" data-cost="80"><div class="icon">📰</div><div class="name">读报</div><div class="cost">80</div></div>
+      <div class="entity-card zombie-card" data-type="football" data-cost="275"><div class="icon">🏈</div><div class="name">橄榄球</div><div class="cost">275</div></div>
     `;
   }
 
@@ -319,7 +338,11 @@ function initGame(socket, data, myTeam, myName) {
     }
 
     // 判定为拖拽：尝试放置
-    handleCellAction(e);
+    const success = handleCellAction(e);
+    if (!success) {
+      cancelSelection();
+      return;
+    }
 
     // 拖拽释放后，总是结束选中状态
     isDragging = false;
@@ -377,8 +400,8 @@ function initGame(socket, data, myTeam, myName) {
 
   // 处理格子点击/触摸
   function handleCellAction(e) {
-    if (e.target.classList.contains('sun-token') || e.target.classList.contains('brain-token')) return;
-    if (!selectedEntity) return;
+    if (e.target.classList.contains('sun-token') || e.target.classList.contains('brain-token')) return true; // Token click is valid
+    if (!selectedEntity) return false;
 
     let { col, row, isValid } = getGridPosition(e);
 
@@ -390,7 +413,7 @@ function initGame(socket, data, myTeam, myName) {
       lastValidCell = null;
     }
 
-    if (!isValid) return;
+    if (!isValid) return false;
 
     if (isShovelMode) {
       socket.emit('removePlant', { col, row });
@@ -402,6 +425,14 @@ function initGame(socket, data, myTeam, myName) {
       removeDragGhost();
     } else if (myTeam === 'plants') {
       const type = selectedEntity;
+      const key = `${col},${row}`;
+
+      // Prevent placing on existing plants
+      if (gameState.plants.has(key)) {
+        // Optional: meaningful feedback or just return
+        return false;
+      }
+
       socket.emit('placePlant', { type, col, row });
 
       // Optimistic Rendering (Instant Feedback)
@@ -437,6 +468,7 @@ function initGame(socket, data, myTeam, myName) {
       removeDragGhost();
       lastValidCell = null;
     }
+    return true;
   }
 
   // 取消选择
@@ -507,6 +539,17 @@ function restoreGameState(gs) {
   $('brain-count').textContent = gs.brainCount;
   $('wave-num').textContent = gs.waveNumber;
   GameUI.updateCardStates();
+
+  if (gs.activeLawnmowers) {
+    gs.activeLawnmowers.forEach((m) => {
+      const el = document.createElement('div');
+      el.className = 'lawnmower active';
+      el.textContent = '🚜';
+      el.style.cssText = `position:absolute; top:${m.row * 109 + 40}px; left:${m.x}px; font-size:40px; z-index:90; transition:left 0.1s linear;`;
+      $('game-board').appendChild(el);
+      gameState.activeLawnmowers.set(m.row, el);
+    });
+  }
 }
 
 // 设置游戏事件监听
@@ -536,8 +579,10 @@ function setupGameEvents(socket, myTeam) {
       // To be safe and avoid visual glitch reset:
       // If I am the one who placed it (which we can infer if existing.optimistic was true), skip cooldown trigger?
       // Actually, let's just trigger it if it's NOT on cooldown, to be safe for sync.
-      if (card && !card.classList.contains('on-cooldown')) {
-        GameUI.startCardCooldown(card, 2500);
+      if (card) {
+        // Always trigger cooldown (even if already on short optimistic cooldown)
+        // to sync with actual server recharge time
+        GameUI.startCardCooldown(card, d.rechargeMs);
       }
     }
     GameUI.updateCardStates();
@@ -573,7 +618,7 @@ function setupGameEvents(socket, myTeam) {
     log(`🧟 ${d.type} 出现在第${d.row + 1}行`);
   });
 
-  socket.off('zombieDied').on('zombieDied', (d) => {
+  socket.off('zombieDie').on('zombieDie', (d) => {
     GameUI.removeZombie(gameState, d.id);
     log(`💀 僵尸死亡`);
   });
@@ -605,13 +650,32 @@ function setupGameEvents(socket, myTeam) {
     }
   });
 
-  socket.off('chomperDigesting').on('chomperDigesting', (d) => {
+  socket.off('chomperEat').on('chomperEat', (d) => {
     const p = gameState.plants.get(`${d.col},${d.row}`);
     if (p) {
       p.el.style.filter = 'brightness(0.6)';
       p.el.style.opacity = '0.7';
     }
-    log('🐊 大嘴正在消化...');
+    // Remove eaten zombie immediately
+    if (d.zombieId) {
+      GameUI.removeZombie(gameState, d.zombieId);
+    }
+    log('🐊 大嘴吞噬了僵尸!');
+  });
+
+  socket.off('zombieJump').on('zombieJump', (d) => {
+    const z = gameState.zombies.get(d.id);
+    if (z) {
+      z.el.style.transition = 'left 0.3s ease-out, transform 0.3s ease-out';
+      z.el.style.transform = 'translateY(-30px)';
+      z.el.style.left = d.toX + 'px';
+      z.hpBar.style.left = d.toX + 10 + 'px';
+      setTimeout(() => {
+        z.el.style.transform = 'translateY(0)';
+        z.el.style.transition = 'left 0.05s linear';
+      }, 300);
+    }
+    log('🏃 撑杆僵尸跳过了植物!');
   });
 
   socket.off('chomperReady').on('chomperReady', (d) => {
@@ -647,13 +711,12 @@ function setupGameEvents(socket, myTeam) {
   socket.off('skyBrain').on('skyBrain', (d) => GameUI.createBrain(socket, d.x, d.y));
   socket.off('zombieBrain').on('zombieBrain', (d) => GameUI.createBrain(socket, d.x, d.row * 109 + 45));
 
-  socket.off('lawnmowerTrigger').on('lawnmowerTrigger', (d) => {
+  socket.off('lawnmowerActive').on('lawnmowerActive', (d) => {
     const lm = $(`lawnmower-${d.row}`);
     if (lm) {
-      lm.style.left = '1300px';
-      log('🚜 割草机启动!');
-      setTimeout(() => lm.remove(), 2000);
+      lm.style.display = 'none'; // Hide static mower, active mower is synced via gameUpdate
     }
+    log('🚜 割草机启动!');
   });
 
   socket.off('sunUpdate').on('sunUpdate', (d) => {
@@ -683,9 +746,6 @@ function setupGameEvents(socket, myTeam) {
     $('wave-num').textContent = d.waveNumber;
     GameUI.updateCardStates();
 
-    // 获取服务器上存在的僵尸ID集合
-    const serverZombieIds = new Set(d.zombies.map((z) => z.id));
-
     // 清理客户端上已经不存在于服务器的植物
     const serverPlantKeys = new Set(d.plants.map((p) => `${p.col},${p.row}`));
     for (const [key, plant] of gameState.plants) {
@@ -707,6 +767,8 @@ function setupGameEvents(socket, myTeam) {
       }
     });
 
+    // 获取服务器上存在的僵尸ID集合
+    const serverZombieIds = new Set(d.zombies.map((z) => z.id));
     // 清理客户端上已经不存在于服务器的僵尸
     for (const [id] of gameState.zombies) {
       if (!serverZombieIds.has(id)) {
@@ -724,6 +786,38 @@ function setupGameEvents(socket, myTeam) {
         if (z.slowed) zs.el.classList.add('slowed');
       }
     });
+
+    // Sync active lawnmowers
+    if (d.activeLawnmowers) {
+      log('Active mowers:', d.activeLawnmowers);
+      const activeRows = new Set();
+      d.activeLawnmowers.forEach((m) => {
+        activeRows.add(m.row);
+        let el = gameState.activeLawnmowers.get(m.row);
+        if (!el) {
+          // Create new mower element
+          el = document.createElement('div');
+          el.className = 'lawnmower active';
+          el.textContent = '🚜';
+          el.style.cssText = `position:absolute; top:${m.row * 109 + 40}px; left:${m.x}px; font-size:40px; z-index:90; transition:left 0.1s linear;`;
+          $('game-board').appendChild(el);
+          gameState.activeLawnmowers.set(m.row, el);
+
+          // Hide the static one
+          const staticMower = $(`lawnmower-${m.row}`);
+          if (staticMower) staticMower.style.display = 'none';
+        }
+        el.style.left = m.x + 'px';
+      });
+
+      // Remove finished mowers
+      for (const [row, el] of gameState.activeLawnmowers) {
+        if (!activeRows.has(row)) {
+          el.remove();
+          gameState.activeLawnmowers.delete(row);
+        }
+      }
+    }
   });
 
   socket.off('gameEnd').on('gameEnd', (d) => {

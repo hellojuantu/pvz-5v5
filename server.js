@@ -138,6 +138,7 @@ class GameRoom {
       .fill()
       .map(() => Array(GRID_ROWS).fill(null));
     this.plants = [];
+    this.activeLawnmowers = []; // Array of {row, x}
     this.zombies = [];
     this.projectiles = [];
     this.lawnmowers = [true, true, true, true, true]; // One per row, true = available
@@ -244,6 +245,7 @@ class GameRoom {
       waveNumber: this.waveNumber,
       maxWaves: this.maxWaves,
       lawnmowers: this.lawnmowers,
+      activeLawnmowers: this.activeLawnmowers,
       plants: this.plants.map((p) => ({ type: p.type, col: p.col, row: p.row, hp: p.hp, maxHp: p.maxHp, armed: p.armed })),
       zombies: this.zombies.map((z) => ({ id: z.id, type: z.type, row: z.row, x: z.x, hp: z.hp, maxHp: z.maxHp, slowed: z.slowed }))
     };
@@ -402,7 +404,7 @@ class GameRoom {
         plant.shootTimer = (plant.shootTimer || 0) + 16;
         const stats = PLANT_STATS[plant.type];
         if (plant.shootTimer >= stats.shootInterval) {
-          if (this.zombies.some((z) => z.row === plant.row && z.x > plant.col * CELL_SIZE && z.hp > 0)) {
+          if (this.zombies.some((z) => z.row === plant.row && z.x > plant.col * CELL_SIZE && z.x < 980 && z.hp > 0)) {
             plant.shootTimer = 0;
             const peaType = plant.type === 'snowpea' ? 'ice' : 'normal';
             const pea = {
@@ -507,24 +509,48 @@ class GameRoom {
         }
       } else if (!targetPlant || zombie.canJump) {
         zombie.x -= zombie.speed;
-        // Check if zombie reaches left edge
-        if (zombie.x < 20) {
-          if (this.lawnmowers[zombie.row]) {
-            // Trigger lawnmower - kill all zombies in this row
-            this.lawnmowers[zombie.row] = false;
-            this.broadcast('lawnmowerTrigger', { row: zombie.row });
-            const zombiesInRow = this.zombies.filter((z) => z.row === zombie.row);
-            zombiesInRow.forEach((z) => {
-              z.hp = 0;
-              this.broadcast('zombieDie', { id: z.id });
-            });
-          } else if (zombie.x < -30) {
-            // No lawnmower left - zombies win
-            this.endGame('zombies');
-          }
-        }
       }
     });
+
+    // Check for zombies reaching home or triggering lawnmowers
+    this.zombies.forEach((z) => {
+      // Trigger Lawnmower
+      // Relaxed condition: check if x < 20 (was 10) to catch them earlier
+      if (z.hp > 0 && z.x < 20 && this.lawnmowers[z.row] === true) {
+        console.log(`[Lawnmower] Triggered at row ${z.row} by zombie ${z.id} at x=${z.x}`);
+        this.lawnmowers[z.row] = null; // Consume static mower
+        this.activeLawnmowers.push({ row: z.row, x: -40 }); // Spawn active mower
+        this.broadcast('lawnmowerActive', { row: z.row });
+      } else if (z.hp > 0 && z.x < -40) {
+        // Game Over logic (zombie entered house)
+        // ... (existing game over check if any)
+      }
+    });
+
+    // Update active lawnmowers
+    for (let i = this.activeLawnmowers.length - 1; i >= 0; i--) {
+      const mower = this.activeLawnmowers[i];
+      mower.x += 5; // Move speed
+
+      // Collision with zombies
+      this.zombies.forEach((z) => {
+        if (z.hp > 0 && z.row === mower.row && Math.abs(z.x - mower.x) < 50) {
+          z.hp = 0;
+          this.broadcast('zombieDie', { id: z.id }); // Should probably broadcast specific "crushed" effect if desired
+        }
+      });
+
+      // Move off screen
+      if (mower.x > 1000) {
+        this.activeLawnmowers.splice(i, 1);
+      }
+    }
+
+    // Check Game Over (if zombie passed defense and no mower)
+    const survivors = this.zombies.filter((z) => z.x < -50 && z.hp > 0);
+    if (survivors.length > 0) {
+      this.endGame('zombies');
+    }
 
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pea = this.projectiles[i];
@@ -552,7 +578,7 @@ class GameRoom {
         }
         this.broadcast('peaHit', { peaId: pea.id, zombieId: hit.id, zombieHp: hit.hp, slowed: pea.slows, fire: pea.fire });
         this.projectiles.splice(i, 1);
-      } else if (pea.x > 1100) {
+      } else if (pea.x > 980) {
         this.broadcast('peaMiss', { peaId: pea.id });
         this.projectiles.splice(i, 1);
       }
@@ -582,7 +608,8 @@ class GameRoom {
         plants: this.plants.map((p) => ({ col: p.col, row: p.row, hp: p.hp })),
         sunCount: this.sunCount,
         brainCount: this.brainCount,
-        waveNumber: this.waveNumber
+        waveNumber: this.waveNumber,
+        activeLawnmowers: this.activeLawnmowers
       });
     }
   }

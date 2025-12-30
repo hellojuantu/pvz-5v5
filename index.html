@@ -116,7 +116,9 @@
           <!-- Leaderboard Section -->
           <div class="section leaderboard lobby-item-leaderboard">
             <div class="section-title">🏆 今日战绩</div>
-            <div id="leaderboard-list" class="leaderboard-list"><div class="no-rooms">暂无记录</div></div>
+            <div id="leaderboard-list" class="leaderboard-list">
+              <div class="no-rooms">暂无记录</div>
+            </div>
           </div>
         </div>
 
@@ -132,7 +134,9 @@
               </svg>
             </span>
           </div>
-          <div id="room-list" class="room-list"><div class="no-rooms">正在搜索房间...</div></div>
+          <div id="room-list" class="room-list">
+            <div class="no-rooms">正在搜索房间...</div>
+          </div>
         </div>
       </div>
     </div>
@@ -202,45 +206,14 @@
             <span id="chat-toggle">−</span>
           </div>
           <div class="side-box-content" id="chat-messages"></div>
-          <div style="padding: 3px"><input type="text" id="chat-input" placeholder="Enter发送" maxlength="80" /></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 移动端面板切换按钮 -->
-    <button class="mobile-toggle-btn" id="mobile-panel-btn">💬</button>
-
-    <!-- 移动端面板覆盖层 -->
-    <div class="mobile-panel-overlay" id="mobile-panel">
-      <div class="mobile-panel-content">
-        <button class="mobile-panel-close" id="mobile-panel-close">×</button>
-        <div class="side-box" style="margin-top: 40px">
-          <div class="side-box-header" onclick="toggleBox('log')">
-            <span>📜 日志</span>
-            <span id="log-toggle-mobile">−</span>
-          </div>
-          <div class="side-box-content" id="action-log-mobile"></div>
-        </div>
-        <div class="side-box" style="margin-top: 10px">
-          <div class="side-box-header" onclick="toggleBox('chat')">
-            <span>💬 聊天</span>
-            <span id="chat-toggle-mobile">−</span>
-          </div>
-          <div class="side-box-content" id="chat-messages-mobile"></div>
-          <div style="padding: 8px">
-            <input
-              type="text"
-              id="chat-input-mobile"
-              placeholder="发送消息..."
-              maxlength="80"
-              style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white"
-            />
+          <div style="padding: 3px">
+            <input type="text" id="chat-input" placeholder="Enter发送" maxlength="80" />
           </div>
         </div>
       </div>
     </div>
 
-    <div id="game-over-modal" class="game-end-modal">
+    <div id="game-end-modal" class="game-end-modal">
       <div class="game-end-content">
         <div class="game-end-title">游戏结束</div>
         <div class="game-end-winner" id="winner-text">植物获胜!</div>

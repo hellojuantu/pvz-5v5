@@ -1097,8 +1097,22 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 15;
-  transition: left 3s linear;
+  transition: left 0.1s linear;
   filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
+}
+.lawnmower.active {
+  z-index: 100;
+  animation: lawnmower-shake 0.1s linear infinite;
+  filter: drop-shadow(0 0 8px #ff5722) drop-shadow(0 0 15px rgba(255, 87, 34, 0.6));
+}
+@keyframes lawnmower-shake {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 .reconnecting-overlay {
