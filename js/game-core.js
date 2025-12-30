@@ -649,6 +649,13 @@ function setupGameEvents(socket, myTeam) {
     log('🏃 撑杆僵尸跳过了植物!');
   });
 
+  socket.off('zombieSlowEnd').on('zombieSlowEnd', (d) => {
+    const z = gameState.zombies.get(d.id);
+    if (z) {
+      z.el.classList.remove('slowed');
+    }
+  });
+
   socket.off('chomperReady').on('chomperReady', (d) => {
     const p = gameState.plants.get(`${d.col},${d.row}`);
     if (p) {

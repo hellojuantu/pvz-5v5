@@ -475,6 +475,13 @@ class GameRoom {
     this.zombies.forEach((zombie) => {
       if (zombie.hp <= 0) return;
 
+      // 检查减速效果是否过期
+      if (zombie.slowed && zombie.slowedUntil && Date.now() > zombie.slowedUntil) {
+        zombie.slowed = false;
+        zombie.speed = zombie.originalSpeed || zombie.speed * 2;
+        this.broadcast('zombieSlowEnd', { id: zombie.id });
+      }
+
       if (zombie.type === 'brain') {
         zombie.brainTimer = (zombie.brainTimer || 0) + 16;
         // Brain production speeds up with wave: wave 1 = 6s, wave 10 = 3s, wave 15 = 2s
@@ -578,9 +585,15 @@ class GameRoom {
       const hit = this.zombies.find((z) => z.row === pea.row && Math.abs(z.x - pea.x) < 40 && z.hp > 0);
       if (hit) {
         hit.hp -= pea.damage;
-        if (pea.slows && !hit.slowed) {
-          hit.slowed = true;
-          hit.speed *= 0.5;
+        // 冰豆减速效果：6秒持续时间，持续击中会刷新
+        if (pea.slows) {
+          const slowDuration = 6000; // 6秒
+          if (!hit.slowed) {
+            hit.slowed = true;
+            hit.originalSpeed = hit.speed;
+            hit.speed *= 0.5;
+          }
+          hit.slowedUntil = Date.now() + slowDuration;
         }
         this.broadcast('peaHit', { peaId: pea.id, zombieId: hit.id, zombieHp: hit.hp, slowed: pea.slows, fire: pea.fire });
         this.projectiles.splice(i, 1);
