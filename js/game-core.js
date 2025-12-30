@@ -160,6 +160,7 @@ function initGame(socket, data, myTeam, myName) {
       <div class="entity-card zombie-card" data-type="flag" data-cost="75"><div class="icon">🎌</div><div class="name">旗子</div><div class="cost">75</div></div>
       <div class="entity-card zombie-card" data-type="newspaper" data-cost="80"><div class="icon">📰</div><div class="name">读报</div><div class="cost">80</div></div>
       <div class="entity-card zombie-card" data-type="football" data-cost="275"><div class="icon">🏈</div><div class="name">橄榄球</div><div class="cost">275</div></div>
+      <div class="entity-card zombie-card" data-type="brain" data-cost="50"><div class="icon">🧠</div><div class="name">脑子</div><div class="cost">50</div></div>
     `;
   }
 

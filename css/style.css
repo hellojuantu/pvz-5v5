@@ -755,10 +755,20 @@ body {
   transition: left 0.05s linear;
 }
 .zombie.slowed {
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4)) hue-rotate(180deg) brightness(1.2);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4)) hue-rotate(180deg) saturate(1.5) brightness(1.1);
+  animation: zombie-freeze 0.5s ease-in-out infinite;
+}
+@keyframes zombie-freeze {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 .zombie.hit {
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4)) brightness(2) saturate(0);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4)) brightness(2.5) saturate(0);
 }
 
 .projectile {
