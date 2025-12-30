@@ -193,6 +193,9 @@ function initGame(socket, data, myTeam, myName) {
 
   // 开始拖拽/选中
   function startDrag(e, type, card) {
+    // 记录开始拖拽时是否已经选中，用于点击切换逻辑
+    window.dragStartWasSelected = (selectedEntity === type);
+
     // 检查资源和冷却
     if (type !== 'shovel') {
       const cost = parseInt(card.dataset.cost);
@@ -289,10 +292,14 @@ function initGame(socket, data, myTeam, myName) {
 
     // 判定为点击 (距离短且时间短) - 进入"选中模式"
     if (dist < 20 && time < 400) {
-      // 这是点击操作：保持选中状态，不尝试放置
+      // 这是点击操作
       isDragging = false;
-      // 点击模式不显示 ghost，确保清除
       removeDragGhost();
+      
+      // 如果开始拖拽时已经选中了该物体，这次点击表示取消选中
+      if (window.dragStartWasSelected) {
+        cancelSelection();
+      }
       return;
     }
 
