@@ -517,8 +517,6 @@ function initGame(socket, data, myTeam, myName) {
     },
     { passive: false }
   );
-
-  setupGameEvents(socket, myTeam);
 }
 
 // 恢复游戏状态
@@ -789,7 +787,6 @@ function setupGameEvents(socket, myTeam) {
 
     // Sync active lawnmowers
     if (d.activeLawnmowers) {
-      log('Active mowers:', d.activeLawnmowers);
       const activeRows = new Set();
       d.activeLawnmowers.forEach((m) => {
         activeRows.add(m.row);

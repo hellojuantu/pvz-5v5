@@ -28,7 +28,8 @@
 
   // 连接成功
   socket.on('connect', () => {
-    // Note: Don't hide overlay yet. Wait for state restore.
+    // 隐藏重连遮罩（如果是重连）
+    $('reconnecting').classList.remove('active');
 
     socket.emit('restore', { oderId: GameCore.getOderId(), name: GameLobby.getMyName() }, (res) => {
       // Hide overlay only after we know what to show
@@ -60,11 +61,6 @@
   // 断开连接
   socket.on('disconnect', () => {
     $('reconnecting').classList.add('active');
-  });
-
-  // 重连成功
-  socket.on('connect', () => {
-    $('reconnecting').classList.remove('active');
   });
 
   // 欢迎页面

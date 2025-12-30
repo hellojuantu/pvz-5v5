@@ -321,7 +321,6 @@ window.GameUI = {
   createBrain,
   createFloatingText,
   createExplosion,
-  createExplosion,
   showWaveBanner,
   initAnimationLoop
 };
