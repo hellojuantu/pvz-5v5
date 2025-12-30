@@ -62,9 +62,16 @@ function renderLeaderboard(data) {
 }
 
 // 打开房间选择阵营
-function openRoom(id, mode, plants, zombies) {
-  currentRoomId = id;
-  openTeamModal(mode, plants, zombies);
+function openRoom(id) {
+  _socket.emit('getRoomInfo', { roomId: id }, (res) => {
+    if (res.success) {
+      currentRoomId = id;
+      openTeamModal(res.info.mode, res.info.plants, res.info.zombies);
+    } else {
+      alert(res.error);
+      refreshRooms(); // 房间不存在时刷新列表
+    }
+  });
 }
 
 // 打开阵营选择模态框

@@ -1042,6 +1042,15 @@ io.on('connection', (socket) => {
     io.emit('roomList', list);
   });
 
+  socket.on('getRoomInfo', ({ roomId }, callback) => {
+    const room = rooms.get(roomId);
+    if (!room) return callback({ success: false, error: '房间不存在或已解散' });
+    callback({
+      success: true,
+      info: room.getInfo()
+    });
+  });
+
   socket.on('joinRoom', ({ roomId, team }, callback) => {
     const room = rooms.get(roomId);
     if (!room) return callback({ success: false, error: '房间不存在或已解散' });
