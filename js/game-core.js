@@ -10,7 +10,8 @@ const gameState = {
   plants: new Map(), // key: "col,row", val: { type, el, hp, ... }
   zombies: new Map(), // key: id, val: { el, hpBar, ... }
   projectiles: new Map(), // key: id, val: { el }
-  activeLawnmowers: new Map() // key: row, val: element
+  activeLawnmowers: new Map(), // key: row, val: element
+  pendingRemovals: new Set() // key: "col,row" - plants waiting for server confirmation
 };
 
 // 当前选中的实体和铲子模式
@@ -406,8 +407,11 @@ function initGame(socket, data, myTeam, myName) {
 
     if (isShovelMode) {
       socket.emit('removePlant', { col, row });
-   
+      
+      // Optimistic Removal (Instant Feedback)
+      const { GameUI } = window;
       GameUI.removePlant(gameState, col, row);
+      gameState.pendingRemovals.add(`${col},${row}`);
 
       selectedEntity = null;
       isShovelMode = false;
@@ -775,9 +779,19 @@ function setupGameEvents(socket, myTeam) {
       GameUI.updatePlantHp(gameState, p.col, p.row, p.hp);
       // 如果植物在客户端不存在，可能需要重新渲染？
       if (!gameState.plants.has(`${p.col},${p.row}`)) {
+        // 如果是正在等待移除的植物，不要重新渲染
+        if (gameState.pendingRemovals.has(`${p.col},${p.row}`)) return;
+        
         GameUI.renderPlant(gameState, { type: p.type, col: p.col, row: p.row, hp: p.hp, maxHp: p.maxHp, armed: p.armed });
       }
     });
+
+    // 清理已确认移除的 pendingRemovals
+    for (const key of gameState.pendingRemovals) {
+      if (!serverPlantKeys.has(key)) {
+        gameState.pendingRemovals.delete(key);
+      }
+    }
 
     // 获取服务器上存在的僵尸ID集合
     const serverZombieIds = new Set(d.zombies.map((z) => z.id));
