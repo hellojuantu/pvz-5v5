@@ -604,9 +604,25 @@ function setupGameEvents(socket, myTeam) {
     if (d.zombieId) {
       GameUI.updateZombieHp(gameState, d.zombieId, d.zombieHp);
       GameUI.highlightZombie(gameState, d.zombieId);
-      if (d.slowed) {
-        const z = gameState.zombies.get(d.zombieId);
-        if (z) z.el.classList.add('slowed');
+      const z = gameState.zombies.get(d.zombieId);
+      if (z) {
+        if (d.slowed) {
+          z.el.classList.add('slowed');
+        }
+        if (d.fire) {
+          z.el.classList.add('burning');
+          // 清除之前的timer，刷新燃烧持续时间
+          if (z.burnTimer) {
+            clearTimeout(z.burnTimer);
+          }
+          // 燃烧效果持续1.5秒（每次被火焰击中都会刷新）
+          z.burnTimer = setTimeout(() => {
+            if (z.el) {
+              z.el.classList.remove('burning');
+            }
+            z.burnTimer = null;
+          }, 1500);
+        }
       }
     }
   });

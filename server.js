@@ -1033,6 +1033,13 @@ io.on('connection', (socket) => {
     const room = new GameRoom(roomId, mode, socket.id, playerName, maxWaves || MAX_WAVES_DEFAULT);
     rooms.set(roomId, room);
     callback({ success: true, roomId, mode, maxWaves: room.maxWaves });
+    
+    // 广播房间列表更新给所有用户
+    const list = [];
+    rooms.forEach((r) => {
+      if (r.state === 'waiting' || r.state === 'paused') list.push(r.getInfo());
+    });
+    io.emit('roomList', list);
   });
 
   socket.on('joinRoom', ({ roomId, team }, callback) => {

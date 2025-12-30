@@ -770,6 +770,19 @@ body {
 .zombie.hit {
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4)) brightness(2.5) saturate(0);
 }
+.zombie.burning {
+  /* turn zombie reddish-orange + flickering glow */
+  filter: sepia(100%) saturate(500%) hue-rotate(-15deg) brightness(1.2) drop-shadow(0 -2px 5px #ff5722);
+  animation: zombie-burn 0.1s ease-in-out infinite alternate;
+}
+@keyframes zombie-burn {
+  from {
+    filter: sepia(100%) saturate(500%) hue-rotate(-15deg) brightness(1.2) drop-shadow(0 -2px 5px #ff5722);
+  }
+  to {
+    filter: sepia(100%) saturate(600%) hue-rotate(-25deg) brightness(1.4) drop-shadow(0 -5px 10px #ff9800);
+  }
+}
 
 .projectile {
   position: absolute;

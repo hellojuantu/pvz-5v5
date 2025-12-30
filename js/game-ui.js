@@ -164,6 +164,11 @@ function highlightZombie(gameState, id) {
 function removeZombie(gameState, id) {
   const z = gameState.zombies.get(id);
   if (z) {
+    // Clear burn timer if exists
+    if (z.burnTimer) {
+      clearTimeout(z.burnTimer);
+      z.burnTimer = null;
+    }
     z.el.remove();
     z.hpBar.remove();
     gameState.zombies.delete(id);
@@ -188,6 +193,25 @@ function initAnimationLoop(gameState) {
   const loop = () => {
     // 更新所有投射物位置
     gameState.projectiles.forEach((pea, id) => {
+      // 客户端碰撞检测：检查是否与僵尸碰撞
+      let hitZombie = false;
+      gameState.zombies.forEach((zombie) => {
+        // 获取僵尸行（从 top 样式计算）
+        const zombieTop = parseInt(zombie.el.style.top) || 0;
+        const zombieRow = Math.round(zombieTop / 109);
+        const zombieX = parseInt(zombie.el.style.left) || 0;
+        
+        // 检查是否同一行且距离小于40px
+        if (pea.row === zombieRow && Math.abs(zombieX - pea.x) < 40) {
+          hitZombie = true;
+        }
+      });
+
+      // 如果碰到僵尸，停止移动（等待服务器确认后移除）
+      if (hitZombie) {
+        return; // 不再移动这个子弹
+      }
+
       pea.x += 10;
       pea.el.style.left = pea.x + 'px';
 
