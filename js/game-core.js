@@ -344,13 +344,13 @@ function initGame(socket, data, myTeam, myName) {
     const dist = Math.hypot(coords.clientX - dragStartX, coords.clientY - dragStartY);
     const time = Date.now() - dragStartTime;
 
-    // 判定为点击 (距离短且时间短)
+    // 判定为点击 (距离短且时间短) - 进入"选中模式"
     // 增加一点宽容度，防止手抖
     if (dist < 15 && time < 400) {
       // 这是点击操作：保持选中状态，不尝试放置
       isDragging = false;
-      // Desktop: Ghost follows cursor. Mobile: Ghost stays?
-      // Let's keep ghost and selection.
+      // 移除幽灵，让用户知道需要点击棋盘放置
+      removeDragGhost();
       return;
     }
 
@@ -507,15 +507,24 @@ function initGame(socket, data, myTeam, myName) {
 
   // 触摸事件
   boardTouchStartHandler = (e) => {
-    if (selectedEntity) e.preventDefault();
-    showCellHighlight(e);
+    // 如果已经选中了实体（不是拖拽中），记录触摸开始位置
+    if (selectedEntity && !isDragging) {
+      e.preventDefault();
+      showCellHighlight(e);
+    } else if (selectedEntity) {
+      e.preventDefault();
+      showCellHighlight(e);
+    }
   };
   boardTouchMoveHandler = (e) => {
-    if (selectedEntity) e.preventDefault();
-    showCellHighlight(e);
+    if (selectedEntity) {
+      e.preventDefault();
+      showCellHighlight(e);
+    }
   };
   boardTouchEndHandler = (e) => {
-    if (selectedEntity) {
+    // 只在"选中模式"（已选中但不是拖拽中）时处理
+    if (selectedEntity && !isDragging) {
       e.preventDefault();
       handleCellAction(e);
     }
