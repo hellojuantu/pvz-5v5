@@ -415,7 +415,7 @@ class GameRoom {
             const peaType = plant.type === 'snowpea' ? 'ice' : 'normal';
             const pea = {
               id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 4),
-              x: plant.col * CELL_SIZE + 80,
+              x: plant.col * CELL_SIZE + 55,
               y: plant.row * CELL_SIZE + 40,
               row: plant.row,
               damage: stats.damage,
@@ -430,7 +430,7 @@ class GameRoom {
                 if (this.state !== 'playing' || plant.hp <= 0) return;
                 const pea2 = {
                   id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 4),
-                  x: plant.col * CELL_SIZE + 80,
+                  x: plant.col * CELL_SIZE + 55,
                   y: plant.row * CELL_SIZE + 40,
                   row: plant.row,
                   damage: stats.damage,
