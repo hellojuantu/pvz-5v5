@@ -407,6 +407,12 @@ function initGame(socket, data, myTeam, myName) {
       // Optimistic Rendering (Instant Feedback)
       const { GameUI } = window;
       GameUI.renderPlant(gameState, { type, col, row, hp: 300, maxHp: 300 }); // HP dummy value, updated by server later
+      const p = gameState.plants.get(`${col},${row}`);
+      if (p) {
+        p.optimistic = true;
+        p.timestamp = Date.now();
+      }
+
       const card = document.querySelector(`.entity-card[data-type="${type}"]`);
       if (card) GameUI.startCardCooldown(card, 2500); // Standard cooldown
 
@@ -508,10 +514,31 @@ function setupGameEvents(socket, myTeam) {
   const { GameUI } = window;
 
   socket.off('plantPlaced').on('plantPlaced', (d) => {
-    GameUI.renderPlant(gameState, d);
+    // Check if we already have this plant (optimistic render)
+    const key = `${d.col},${d.row}`;
+    const existing = gameState.plants.get(key);
+
+    if (existing && existing.optimistic) {
+      // It was an optimistic plant, now confirmed by server
+      delete existing.optimistic;
+      existing.hp = d.hp;
+      existing.maxHp = d.maxHp;
+      // No need to re-render, just update data
+    } else {
+      // Normal render for other players' plants or if we missed optimistic
+      GameUI.renderPlant(gameState, d);
+    }
+
     if (myTeam === 'plants') {
       const card = document.querySelector(`.entity-card[data-type="${d.type}"]`);
-      if (card) GameUI.startCardCooldown(card, 2500);
+      // Only trigger cooldown if not already triggered (simple check: if optimistic, we typically triggered it already)
+      // But purely redundant call is seemingly harmless as it resets timer.
+      // To be safe and avoid visual glitch reset:
+      // If I am the one who placed it (which we can infer if existing.optimistic was true), skip cooldown trigger?
+      // Actually, let's just trigger it if it's NOT on cooldown, to be safe for sync.
+      if (card && !card.classList.contains('on-cooldown')) {
+        GameUI.startCardCooldown(card, 2500);
+      }
     }
     GameUI.updateCardStates();
     log(`🌱 ${d.type} 种植于 (${d.col},${d.row})`);
@@ -661,8 +688,11 @@ function setupGameEvents(socket, myTeam) {
 
     // 清理客户端上已经不存在于服务器的植物
     const serverPlantKeys = new Set(d.plants.map((p) => `${p.col},${p.row}`));
-    for (const [key] of gameState.plants) {
+    for (const [key, plant] of gameState.plants) {
       if (!serverPlantKeys.has(key)) {
+        // Protect optimistic plants for 2 seconds (allow server sync to catch up)
+        if (plant.optimistic && Date.now() - plant.timestamp < 2000) continue;
+
         const [col, row] = key.split(',').map(Number);
         GameUI.removePlant(gameState, col, row);
       }
