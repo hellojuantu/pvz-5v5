@@ -112,13 +112,13 @@ const PLANT_STATS = {
 };
 
 const ZOMBIE_STATS = {
-  normal: { hp: 200, speed: 0.3, damage: 30, cost: 50, recharge: 2000 },
-  cone: { hp: 500, speed: 0.28, damage: 30, cost: 100, recharge: 3000 },
-  bucket: { hp: 900, speed: 0.22, damage: 30, cost: 175, recharge: 5000 },
-  flag: { hp: 180, speed: 0.45, damage: 35, cost: 75, recharge: 2500 },
-  newspaper: { hp: 300, speed: 0.25, damage: 25, cost: 80, recharge: 3000 },
-  polevaulter: { hp: 350, speed: 0.4, damage: 30, cost: 125, canJump: true, recharge: 4000 },
-  football: { hp: 1200, speed: 0.38, damage: 45, cost: 275, recharge: 10000 },
+  normal: { hp: 270, speed: 0.35, damage: 30, cost: 50, recharge: 2000 },
+  cone: { hp: 600, speed: 0.30, damage: 30, cost: 100, recharge: 3000 },
+  bucket: { hp: 1300, speed: 0.24, damage: 30, cost: 175, recharge: 5000 },
+  flag: { hp: 270, speed: 0.50, damage: 35, cost: 75, recharge: 2500 },
+  newspaper: { hp: 400, speed: 0.28, damage: 25, cost: 80, recharge: 3000 },
+  polevaulter: { hp: 450, speed: 0.50, damage: 30, cost: 125, canJump: true, recharge: 4000 },
+  football: { hp: 1600, speed: 0.40, damage: 45, cost: 275, recharge: 10000 },
   brain: { hp: 25, speed: 0.18, damage: 0, cost: 50, brainInterval: 6000, recharge: 3000 }
 };
 
@@ -356,16 +356,16 @@ class GameRoom {
     }
   }
 
-  // Wave costs 200 brains to summon
+  // Wave costs 300 brains to summon
   buyWave(byName) {
     if (this.state !== 'playing') return false;
-    if (this.brainCount < 800) return false;
+    if (this.brainCount < 300) return false;
     if (this.waveNumber >= this.maxWaves) {
       this.endGame('plants');
       return false;
     }
 
-    this.brainCount -= 800;
+    this.brainCount -= 300;
     this.waveNumber++;
     const baseCount = Math.min(2 + Math.floor(this.waveNumber / 3), 6);
     this.broadcast('waveStart', {
